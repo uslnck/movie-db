@@ -2,7 +2,7 @@
 
 import "./app.css";
 import { Row, Col, Card } from "antd";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 class SearchService {
   _baseUrl = "https://api.themoviedb.org/3/search/";
@@ -39,27 +39,30 @@ const ss = new SearchService();
 //   return body[Math.floor(Math.random() * 21)];
 // });
 
+const baseURL = "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
+// const movieUrl = (movieId) => `${baseURL}${movieId}`;
+
 const MovieList = () => {
   const [movies, setMovies] = useState([]);
 
-  useEffect(() => {
-    const fetchMovies = async () => {
-      try {
-        const randomMovie = await ss.searchMovie("return");
-        const movieData = randomMovie.map((movie) => ({
-          title: movie.original_title,
-          date: movie.release_date,
-          genres: ["Action", "Drama"],
-          description: movie.overview,
-          posterUrl: "https://example.com/movie1-poster.jpg",
-        }));
-        setMovies(movieData);
-      } catch (e) {
-        throw new Error("Couldn't fetch movies", e);
-      }
-    };
-    fetchMovies();
-  }, []);
+  const fetchMovies = async () => {
+    try {
+      const randomMovie = await ss.searchMovie("return");
+      const movieData = randomMovie.map((movie) => ({
+        title: movie.original_title,
+        date: movie.release_date,
+        genres: ["Action", "Drama"],
+        description: movie.overview,
+        posterUrl: `${baseURL}${movie.poster_path}`,
+        // movieUrl: movieUrl(movie.id),
+      }));
+      setMovies(movieData);
+    } catch (e) {
+      throw new Error("Couldn't fetch movies", e);
+    }
+  };
+
+  fetchMovies();
 
   return (
     <>
@@ -78,7 +81,21 @@ const MovieList = () => {
             >
               <Row gutter={[16, 16]}>
                 <Col span={8}>
-                  <img src={posterUrl} alt={title} />
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <img
+                      src={posterUrl}
+                      alt={title}
+                      style={{ height: "100%", width: "100%" }}
+                    />
+                  </div>
                 </Col>
                 <Col
                   span={16}
@@ -109,7 +126,6 @@ const MovieList = () => {
                       );
                     })}
                   </p>
-
                   <p className="description">{description}</p>
                 </Col>
               </Row>
