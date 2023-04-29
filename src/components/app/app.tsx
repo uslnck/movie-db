@@ -2,7 +2,7 @@
 
 import "./app.css";
 import { Row, Col, Card } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 class SearchService {
   _baseUrl = "https://api.themoviedb.org/3/search/";
@@ -62,7 +62,7 @@ const MovieList = () => {
     }
   };
 
-  fetchMovies();
+  useEffect(() => fetchMovies(), []);
 
   return (
     <>
