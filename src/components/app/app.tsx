@@ -9,14 +9,16 @@ class SearchService {
   _apiKey = "?api_key=0181923591c91859e91691704fe87633";
   _noAdult = "&include_adult=false";
   _lang = "&language=en-US";
+  _baseUrlGenres = "https://api.themoviedb.org/3/genre/movie/list";
 
-  async getResource(query, searchType, page = 1) {
+  async getResource(query, searchType, baseUrl = this._baseUrl, page = 1) {
     const q = "&query=" + query;
-    const s = searchType;
     const p = "&page=" + page;
-    const res = await fetch(
-      `${this._baseUrl}${s}${this._apiKey}${this._lang}${q}${p}${this._noAdult}`
-    );
+    const fetchString = `${baseUrl}${searchType}${this._apiKey}${this._lang}${q}${p}${this._noAdult}`;
+    const fetchGenresString = `${this._baseUrlGenres}${this._apiKey}`;
+    let res = {};
+    if (baseUrl === this._baseUrl) res = await fetch(fetchString);
+    else res = await fetch(fetchGenresString);
     if (!res.ok) throw new Error("Couldn't fetch URL");
     const body = await res.json();
     return body;
@@ -31,19 +33,32 @@ class SearchService {
     const res = await this.getResource(query, "people");
     return res.results;
   }
+
+  async getGenres() {
+    const res = await this.getResource("", "", this._baseUrlGenres);
+    return res.genres;
+  }
 }
 
 const ss = new SearchService();
-
-// const randomMovie = ss.searchMovie("return").then((body) => {
-//   return body[Math.floor(Math.random() * 21)];
-// });
-
-const baseURL = "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
-// const movieUrl = (movieId) => `${baseURL}${movieId}`;
+const imageBaseURL = "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
 
 const MovieList = () => {
   const [movies, setMovies] = useState([]);
+  const [genres, setGenres] = useState([]);
+
+  const fetchGenres = async () => {
+    try {
+      const genreList = await ss.getGenres();
+      setGenres(genreList);
+    } catch (e) {
+      throw new Error("Couldn't fetch genres", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchGenres();
+  }, []);
 
   const fetchMovies = async () => {
     try {
@@ -51,10 +66,9 @@ const MovieList = () => {
       const movieData = randomMovie.map((movie) => ({
         title: movie.original_title,
         date: movie.release_date,
-        genres: ["Action", "Drama"],
         description: movie.overview,
-        posterUrl: `${baseURL}${movie.poster_path}`,
-        // movieUrl: movieUrl(movie.id),
+        posterUrl: `${imageBaseURL}${movie.poster_path}`,
+        genres: getGenreText(movie.genre_ids),
       }));
       setMovies(movieData);
     } catch (e) {
@@ -62,7 +76,17 @@ const MovieList = () => {
     }
   };
 
-  useEffect(() => fetchMovies(), []);
+  const getGenreText = (genreIds) => {
+    const genreNames = genreIds.map((id) => {
+      const genre = genres.find((g) => g.id === id);
+      return genre ? genre.name : "";
+    });
+    return genreNames.filter((name) => name !== "");
+  };
+
+  useEffect(() => {
+    fetchMovies();
+  }, [genres]);
 
   return (
     <>
