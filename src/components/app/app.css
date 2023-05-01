@@ -23,3 +23,34 @@ body {
 .divider {
   background-color: white;
 }
+
+.description {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pagination {
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 20px;
+  padding-top: 20px;
+}
+
+.rating {
+  align-items: center;
+  background-color: white;
+  border: 4px solid #ffce00;
+  border-radius: 50%;
+  color: black;
+  display: flex;
+  font-size: 28px;
+  height: 60px;
+  justify-content: center;
+  position: absolute;
+  right: -20px;
+  top: -20px;
+  width: 60px;
+}
