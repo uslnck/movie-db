@@ -1,7 +1,7 @@
 //@ts-nocheck
 
 import "./app.css";
-import { Row, Col, Card, Pagination, Rate, Spin } from "antd";
+import { Row, Col, Card, Pagination, Rate, Spin, Input } from "antd";
 import { useEffect, useState } from "react";
 
 class SearchService {
@@ -50,6 +50,7 @@ const MovieList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageLoading, setPageLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
+  const [searchText, setSearchText] = useState("");
   const pageSize = 6;
 
   const fetchGenres = async () => {
@@ -61,13 +62,11 @@ const MovieList = () => {
     }
   };
 
-  useEffect(() => {
-    fetchGenres();
-  }, []);
-
-  const fetchMovies = async () => {
+  const handleSearch = async (value = "の") => {
     try {
-      const randomMovie = await ss.searchMovie("の");
+      setPageLoading(true);
+      setImageLoading(true);
+      const randomMovie = await ss.searchMovie(value);
       const movieData = randomMovie.map((movie) => ({
         title: movie.original_title,
         date: movie.release_date,
@@ -77,6 +76,7 @@ const MovieList = () => {
         rating: movie.vote_average,
       }));
       setMovies(movieData);
+      setCurrentPage(1);
       setPageLoading(false);
     } catch (e) {
       throw new Error("Couldn't fetch movies", e);
@@ -91,10 +91,6 @@ const MovieList = () => {
     return genreNames.filter((name) => name !== "");
   };
 
-  useEffect(() => {
-    fetchMovies();
-  }, [genres]);
-
   const handleImageLoad = () => {
     setImageLoading(false);
   };
@@ -106,6 +102,14 @@ const MovieList = () => {
   };
 
   useEffect(() => {
+    fetchGenres();
+  }, []);
+
+  useEffect(() => {
+    handleSearch();
+  }, [genres]);
+
+  useEffect(() => {
     const posterContainers = document.querySelectorAll(".poster-container");
     posterContainers.forEach((posterContainer) => {
       const poster = posterContainer.querySelector(".poster");
@@ -113,6 +117,16 @@ const MovieList = () => {
       posterContainer.appendChild(poster);
     });
   }, [currentPage]);
+
+  const handleInputChange = (e) => {
+    setSearchText(e.target.value);
+  };
+
+  const handlePressEnter = () => {
+    handleSearch(searchText);
+    setCurrentPage(currentPage + 1);
+    setCurrentPage(currentPage - 1);
+  };
 
   if (pageLoading)
     return (
@@ -128,12 +142,29 @@ const MovieList = () => {
     );
   return (
     <>
+      <div className="search">
+        <Input
+          placeholder="Search movies"
+          allowClear
+          size="large"
+          onPressEnter={handlePressEnter}
+          onChange={handleInputChange}
+          style={{
+            marginTop: 35,
+            width: "40%",
+            position: "relative",
+            left: "50%",
+            transform: "translate(-50%, 0%)",
+          }}
+        />
+      </div>
       <div className="pagination">
         <Pagination
           current={currentPage}
           pageSize={pageSize}
           total={movies.length}
           onChange={(page) => handlePageChange(page)}
+          style={{ paddingBottom: 20, paddingTop: 10 }}
         />
       </div>
       <Row gutter={[0, 40]} justify="space-evenly">
@@ -226,6 +257,7 @@ const MovieList = () => {
           pageSize={pageSize}
           total={movies.length}
           onChange={(page) => handlePageChange(page)}
+          style={{ paddingBottom: 20, paddingTop: 20 }}
         />
       </div>
     </>
