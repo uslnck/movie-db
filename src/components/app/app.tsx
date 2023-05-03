@@ -101,6 +101,14 @@ const MovieList = () => {
     window.scrollTo(0, 0);
   };
 
+  const handleInputChange = (e) => {
+    setSearchText(e.target.value);
+  };
+
+  const handlePressEnter = () => {
+    handleSearch(searchText);
+  };
+
   useEffect(() => {
     fetchGenres();
   }, []);
@@ -117,16 +125,6 @@ const MovieList = () => {
       posterContainer.appendChild(poster);
     });
   }, [currentPage]);
-
-  const handleInputChange = (e) => {
-    setSearchText(e.target.value);
-  };
-
-  const handlePressEnter = () => {
-    handleSearch(searchText);
-    setCurrentPage(currentPage + 1);
-    setCurrentPage(currentPage - 1);
-  };
 
   if (pageLoading)
     return (
