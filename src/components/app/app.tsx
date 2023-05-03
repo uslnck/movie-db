@@ -1,7 +1,7 @@
 //@ts-nocheck
 
 import "./app.css";
-import { Row, Col, Card, Pagination, Rate } from "antd";
+import { Row, Col, Card, Pagination, Rate, Spin } from "antd";
 import { useEffect, useState } from "react";
 
 class SearchService {
@@ -25,12 +25,12 @@ class SearchService {
     return body;
   }
 
-  async searchMovie(query, page) {
-    const res = await this.getResource(query, "movie", this._baseUrl, page);
+  async searchMovie(query) {
+    const res = await this.getResource(query, "movie", this._baseUrl);
     return res.results;
   }
 
-  async searchPeople(query, page) {
+  async searchPeople(query) {
     const res = await this.getResource(query, "people");
     return res.results;
   }
@@ -48,6 +48,9 @@ const MovieList = () => {
   const [movies, setMovies] = useState([]);
   const [genres, setGenres] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(true);
+  const pageSize = 6;
 
   const fetchGenres = async () => {
     try {
@@ -62,9 +65,9 @@ const MovieList = () => {
     fetchGenres();
   }, []);
 
-  const fetchMovies = async (page) => {
+  const fetchMovies = async () => {
     try {
-      const randomMovie = await ss.searchMovie("の", page);
+      const randomMovie = await ss.searchMovie("の");
       const movieData = randomMovie.map((movie) => ({
         title: movie.original_title,
         date: movie.release_date,
@@ -74,6 +77,7 @@ const MovieList = () => {
         rating: movie.vote_average,
       }));
       setMovies(movieData);
+      setPageLoading(false);
     } catch (e) {
       throw new Error("Couldn't fetch movies", e);
     }
@@ -91,12 +95,50 @@ const MovieList = () => {
     fetchMovies();
   }, [genres]);
 
+  const handleImageLoad = () => {
+    setImageLoading(false);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    setImageLoading(true);
+    window.scrollTo(0, 0);
+  };
+
+  useEffect(() => {
+    const posterContainers = document.querySelectorAll(".poster-container");
+    posterContainers.forEach((posterContainer) => {
+      const poster = posterContainer.querySelector(".poster");
+      posterContainer.removeChild(poster);
+      posterContainer.appendChild(poster);
+    });
+  }, [currentPage]);
+
+  if (pageLoading)
+    return (
+      <Spin
+        size="large"
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+        }}
+      />
+    );
   return (
     <>
-      <h1>Movies</h1>
+      <div className="pagination">
+        <Pagination
+          current={currentPage}
+          pageSize={pageSize}
+          total={movies.length}
+          onChange={(page) => handlePageChange(page)}
+        />
+      </div>
       <Row gutter={[0, 40]} justify="space-evenly">
         {movies
-          .slice((currentPage - 1) * 6, currentPage * 6)
+          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
           .map(({ genres, posterUrl, date, description, title, rating }, i) => (
             <Col span={24} md={11} lg={11} sm={5} key={i}>
               <Card
@@ -112,6 +154,7 @@ const MovieList = () => {
                 <Row gutter={[16, 16]}>
                   <Col span={8}>
                     <div
+                      className="poster-container"
                       style={{
                         width: "100%",
                         height: "100%",
@@ -120,10 +163,23 @@ const MovieList = () => {
                         alignItems: "center",
                       }}
                     >
+                      {imageLoading && (
+                        <Spin
+                          size="large"
+                          style={{
+                            position: "absolute",
+                            top: "50%",
+                            left: "50%",
+                            transform: "translate(-50%, -50%)",
+                          }}
+                        />
+                      )}
                       <img
                         src={posterUrl}
                         alt={title}
                         style={{ height: "100%", width: "100%" }}
+                        onLoad={handleImageLoad}
+                        className="poster"
                       />
                     </div>
                   </Col>
@@ -167,9 +223,9 @@ const MovieList = () => {
       <div className="pagination">
         <Pagination
           current={currentPage}
-          pageSize={6}
+          pageSize={pageSize}
           total={movies.length}
-          onChange={(page) => setCurrentPage(page)}
+          onChange={(page) => handlePageChange(page)}
         />
       </div>
     </>
