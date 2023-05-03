@@ -1,7 +1,7 @@
 //@ts-nocheck
 
 import "./app.css";
-import { Row, Col, Card, Pagination, Rate, Spin, Input } from "antd";
+import { Row, Col, Card, Pagination, Rate, Spin, Input, message } from "antd";
 import { useEffect, useState } from "react";
 
 class SearchService {
@@ -66,8 +66,8 @@ const MovieList = () => {
     try {
       setPageLoading(true);
       setImageLoading(true);
-      const randomMovie = await ss.searchMovie(value);
-      const movieData = randomMovie.map((movie) => ({
+      const searchResults = await ss.searchMovie(value);
+      const movieData = searchResults.map((movie) => ({
         title: movie.original_title,
         date: movie.release_date,
         description: movie.overview,
@@ -75,6 +75,7 @@ const MovieList = () => {
         genres: getGenreText(movie.genre_ids),
         rating: movie.vote_average,
       }));
+      if (movieData.length === 0) message.info("No results found.");
       setMovies(movieData);
       setCurrentPage(1);
       setPageLoading(false);
