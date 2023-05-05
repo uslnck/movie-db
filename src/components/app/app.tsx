@@ -2,7 +2,7 @@
 
 import "./app.css";
 import { Row, Col, Card, Pagination, Rate, Spin, Input, message } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 class SearchService {
   _baseUrl = "https://api.themoviedb.org/3/search/";
@@ -30,11 +30,6 @@ class SearchService {
     return res.results;
   }
 
-  async searchPeople(query) {
-    const res = await this.getResource(query, "people");
-    return res.results;
-  }
-
   async getGenres() {
     const res = await this.getResource("", "", this._baseUrlGenres);
     return res.genres;
@@ -52,6 +47,7 @@ const MovieList = () => {
   const [imageLoading, setImageLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
   const pageSize = 6;
+  const isInitialRender = useRef(true);
 
   const fetchGenres = async () => {
     try {
@@ -62,44 +58,51 @@ const MovieList = () => {
     }
   };
 
+  const getGenreText = (genreIds) => {
+    return genreIds?.map((id) => {
+      console.log("mapped genre text");
+      const genre = genres?.find((g) => g.id === id);
+      return genre ? genre?.name : null;
+    });
+  };
+
   const handleSearch = async (value = "の") => {
     try {
       setPageLoading(true);
       setImageLoading(true);
       const searchResults = await ss.searchMovie(value);
       const movieData = searchResults.map((movie) => ({
-        title: movie.original_title,
-        date: movie.release_date,
-        description: movie.overview,
-        posterUrl: `${imageBaseURL}${movie.poster_path}`,
-        genres: getGenreText(movie.genre_ids),
-        rating: movie.vote_average,
+        title: movie?.original_title,
+        date: movie?.release_date,
+        description: movie?.overview,
+        posterUrl: `${imageBaseURL}${movie?.poster_path}`,
+        genres: getGenreText(movie?.genre_ids),
+        rating: movie?.vote_average,
       }));
       if (movieData.length === 0) message.info("No results found.");
       setMovies(movieData);
       setCurrentPage(1);
       setPageLoading(false);
     } catch (e) {
+      console.log(e);
       throw new Error("Couldn't fetch movies", e);
     }
-  };
-
-  const getGenreText = (genreIds) => {
-    const genreNames = genreIds.map((id) => {
-      const genre = genres.find((g) => g.id === id);
-      return genre ? genre.name : "";
-    });
-    return genreNames.filter((name) => name !== "");
   };
 
   const handleImageLoad = () => {
     setImageLoading(false);
   };
 
+  const handleImageLoadError = (e) => {
+    e.target.src =
+      "https://upload.wikimedia.org/wikipedia/commons/1/14/No_Image_Available.jpg?20200913095930";
+  };
+
   const handlePageChange = (page) => {
     setCurrentPage(page);
     setImageLoading(true);
     window.scrollTo(0, 0);
+    console.log("changed page");
   };
 
   const handleInputChange = (e) => {
@@ -108,14 +111,21 @@ const MovieList = () => {
 
   const handlePressEnter = () => {
     handleSearch(searchText);
+    console.log("handled new search");
   };
 
   useEffect(() => {
     fetchGenres();
+    console.log("fetched genres", Date.now());
   }, []);
 
   useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
     handleSearch();
+    console.log("handled search", Date.now());
   }, [genres]);
 
   useEffect(() => {
@@ -125,6 +135,7 @@ const MovieList = () => {
       posterContainer.removeChild(poster);
       posterContainer.appendChild(poster);
     });
+    console.log("refreshed posters");
   }, [currentPage]);
 
   if (pageLoading)
@@ -180,7 +191,9 @@ const MovieList = () => {
                   paddingRight: 0,
                 }}
               >
-                <div className="rating">{rating.toFixed(1)}</div>
+                <div className="rating">
+                  {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
+                </div>
                 <Row gutter={[16, 16]}>
                   <Col span={8}>
                     <div
@@ -207,6 +220,7 @@ const MovieList = () => {
                       <img
                         src={posterUrl}
                         alt={title}
+                        onError={handleImageLoadError}
                         style={{ height: "100%", width: "100%" }}
                         onLoad={handleImageLoad}
                         className="poster"
@@ -225,8 +239,8 @@ const MovieList = () => {
                   >
                     <h2 className="title">{title}</h2>
                     <p className="date">{date}</p>
-                    <p>
-                      {genres.map((genre, i) => {
+                    <p className="genres">
+                      {genres?.map((genre, i) => {
                         return (
                           <span
                             className="genre"
