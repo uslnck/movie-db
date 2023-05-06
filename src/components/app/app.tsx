@@ -5,28 +5,40 @@ import { Row, Col, Card, Pagination, Rate, Spin, Input, message } from "antd";
 import { useEffect, useState, useRef } from "react";
 
 class SearchService {
-  _baseUrl = "https://api.themoviedb.org/3/search/";
+  _baseUrlMovies = "https://api.themoviedb.org/3/search/";
+  _baseUrlGenres = "https://api.themoviedb.org/3/genre/movie/list";
+  _baseUrlSession =
+    "https://api.themoviedb.org/3/authentication/guest_session/new";
   _apiKey = "?api_key=0181923591c91859e91691704fe87633";
   _noAdult = "&include_adult=false";
   _lang = "&language=en-US";
-  _baseUrlGenres = "https://api.themoviedb.org/3/genre/movie/list";
 
-  async getResource(query, searchType, baseUrl = this._baseUrl, page = 1) {
+  async getResource(
+    query,
+    searchType,
+    baseUrl = this._baseUrlMovies,
+    page = 1
+  ) {
     const q = "&query=" + query;
     const p = "&page=" + page;
     const fetchMoviesString = `${baseUrl}${searchType}${this._apiKey}${this._lang}${q}${p}${this._noAdult}`;
     const fetchGenresString = `${this._baseUrlGenres}${this._apiKey}`;
+    const fetchSessionString = `${this._baseUrlSession}${this._apiKey}`;
 
     let res = {};
-    if (baseUrl === this._baseUrl) res = await fetch(fetchMoviesString);
-    else res = await fetch(fetchGenresString);
+
+    if (baseUrl === this._baseUrlMovies) res = await fetch(fetchMoviesString);
+    else if (baseUrl === this._baseUrlGenres)
+      res = await fetch(fetchGenresString);
+    else res = await fetch(fetchSessionString);
+
     if (!res.ok) throw new Error("Couldn't fetch URL");
     const body = await res.json();
     return body;
   }
 
-  async searchMovie(query) {
-    const res = await this.getResource(query, "movie", this._baseUrl);
+  async getMovies(query) {
+    const res = await this.getResource(query, "movie", this._baseUrlMovies);
     return res.results;
   }
 
@@ -34,14 +46,19 @@ class SearchService {
     const res = await this.getResource("", "", this._baseUrlGenres);
     return res.genres;
   }
+
+  async getSessionId() {
+    const res = await this.getResource("", "", this._baseUrlSession);
+    return res.guest_session_id;
+  }
 }
 
 const ss = new SearchService();
-const imageBaseURL = "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
 
 const MovieList = () => {
   const [movies, setMovies] = useState([]);
   const [genres, setGenres] = useState([]);
+  const [sessionId, setSessionId] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageLoading, setPageLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
@@ -49,28 +66,41 @@ const MovieList = () => {
   const pageSize = 6;
   const isInitialRender = useRef(true);
 
-  const fetchGenres = async () => {
+  const getGenres = async () => {
     try {
       const genreList = await ss.getGenres();
       setGenres(genreList);
+      console.log("fetched genres", Date.now());
     } catch (e) {
-      throw new Error("Couldn't fetch genres", e);
+      throw new Error(`${e} (Couldn't fetch genres)`);
     }
   };
 
   const getGenreText = (genreIds) => {
     return genreIds?.map((id) => {
-      console.log("mapped genre text");
       const genre = genres?.find((g) => g.id === id);
+      console.log("mapped genre text");
       return genre ? genre?.name : null;
     });
+  };
+
+  const getSessionId = async () => {
+    try {
+      const sessionId = await ss.getSessionId();
+      setSessionId(sessionId);
+      console.log(`guest session created, id: ${sessionId}`, Date.now());
+    } catch (e) {
+      throw new Error(`${e} (Couldn't create session)`);
+    }
   };
 
   const handleSearch = async (value = "の") => {
     try {
       setPageLoading(true);
       setImageLoading(true);
-      const searchResults = await ss.searchMovie(value);
+      const imageBaseURL =
+        "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
+      const searchResults = await ss.getMovies(value);
       const movieData = searchResults.map((movie) => ({
         title: movie?.original_title,
         date: movie?.release_date,
@@ -83,9 +113,10 @@ const MovieList = () => {
       setMovies(movieData);
       setCurrentPage(1);
       setPageLoading(false);
+      console.log("handled search", Date.now());
     } catch (e) {
       console.log(e);
-      throw new Error("Couldn't fetch movies", e);
+      throw new Error(`${e} (Couldn't fetch movies)`);
     }
   };
 
@@ -111,12 +142,25 @@ const MovieList = () => {
 
   const handlePressEnter = () => {
     handleSearch(searchText);
-    console.log("handled new search");
+    console.log("initiated new search");
+  };
+
+  const refreshPosters = () => {
+    const posterContainers = document.querySelectorAll(".poster-container");
+    posterContainers.forEach((posterContainer) => {
+      const poster = posterContainer.querySelector(".poster");
+      posterContainer.removeChild(poster);
+      posterContainer.appendChild(poster);
+    });
+    console.log("refreshed posters");
   };
 
   useEffect(() => {
-    fetchGenres();
-    console.log("fetched genres", Date.now());
+    getGenres();
+  }, []);
+
+  useEffect(() => {
+    getSessionId();
   }, []);
 
   useEffect(() => {
@@ -125,17 +169,11 @@ const MovieList = () => {
       return;
     }
     handleSearch();
-    console.log("handled search", Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genres]);
 
   useEffect(() => {
-    const posterContainers = document.querySelectorAll(".poster-container");
-    posterContainers.forEach((posterContainer) => {
-      const poster = posterContainer.querySelector(".poster");
-      posterContainer.removeChild(poster);
-      posterContainer.appendChild(poster);
-    });
-    console.log("refreshed posters");
+    refreshPosters();
   }, [currentPage]);
 
   if (pageLoading)
