@@ -1,7 +1,17 @@
 //@ts-nocheck
 
 import "./app.css";
-import { Row, Col, Card, Pagination, Rate, Spin, Input, message } from "antd";
+import {
+  Row,
+  Col,
+  Card,
+  Pagination,
+  Rate,
+  Spin,
+  Input,
+  Tabs,
+  message,
+} from "antd";
 import { useEffect, useState, useRef } from "react";
 
 class SearchService {
@@ -63,6 +73,7 @@ const MovieList = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
+  const [activeTab, setActiveTab] = useState("");
   const pageSize = 6;
   const isInitialRender = useRef(true);
 
@@ -79,7 +90,7 @@ const MovieList = () => {
   const getGenreText = (genreIds) => {
     return genreIds?.map((id) => {
       const genre = genres?.find((g) => g.id === id);
-      console.log("mapped genre text");
+      console.log("mapped genre text in search");
       return genre ? genre?.name : null;
     });
   };
@@ -149,17 +160,13 @@ const MovieList = () => {
     const posterContainers = document.querySelectorAll(".poster-container");
     posterContainers.forEach((posterContainer) => {
       const poster = posterContainer.querySelector(".poster");
-      posterContainer.removeChild(poster);
-      posterContainer.appendChild(poster);
+      posterContainer.replaceChild(poster, poster);
     });
     console.log("refreshed posters");
   };
 
   useEffect(() => {
     getGenres();
-  }, []);
-
-  useEffect(() => {
     getSessionId();
   }, []);
 
@@ -176,50 +183,154 @@ const MovieList = () => {
     refreshPosters();
   }, [currentPage]);
 
-  if (pageLoading)
-    return (
-      <Spin
-        size="large"
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-        }}
-      />
-    );
-  return (
-    <>
-      <div className="search">
-        <Input
-          placeholder="Search movies"
-          allowClear
-          size="large"
-          onPressEnter={handlePressEnter}
-          onChange={handleInputChange}
-          style={{
-            marginTop: 35,
-            width: "40%",
-            position: "relative",
-            left: "50%",
-            transform: "translate(-50%, 0%)",
-          }}
-        />
-      </div>
-      <div className="pagination">
-        <Pagination
-          current={currentPage}
-          pageSize={pageSize}
-          total={movies.length}
-          onChange={(page) => handlePageChange(page)}
-          style={{ paddingBottom: 20, paddingTop: 10 }}
-        />
-      </div>
-      <Row gutter={[0, 40]} justify="space-evenly">
-        {movies
-          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-          .map(({ genres, posterUrl, date, description, title, rating }, i) => (
-            <Col span={24} md={11} lg={11} sm={5} key={i}>
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+  };
+
+  const items = [
+    {
+      key: "1",
+      label: "Search",
+      children: (
+        <>
+          <div className="search">
+            <Input
+              placeholder="Search movies"
+              allowClear
+              size="large"
+              onPressEnter={handlePressEnter}
+              onChange={handleInputChange}
+              style={{
+                width: "40%",
+                position: "relative",
+                left: "50%",
+                transform: "translate(-50%, 0%)",
+              }}
+            />
+          </div>
+          <div className="pagination">
+            <Pagination
+              current={currentPage}
+              pageSize={pageSize}
+              total={movies.length}
+              onChange={(page) => handlePageChange(page)}
+              style={{ paddingBottom: 20, paddingTop: 10 }}
+            />
+          </div>
+          <Row gutter={[0, 40]} justify="space-evenly">
+            {movies
+              .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+              .map(
+                (
+                  { genres, posterUrl, date, description, title, rating },
+                  i
+                ) => (
+                  <Col span={24} md={11} lg={11} sm={5} key={i}>
+                    <Card
+                      className="card"
+                      bodyStyle={{
+                        paddingBottom: 0,
+                        paddingTop: 0,
+                        paddingLeft: 0,
+                        paddingRight: 0,
+                      }}
+                    >
+                      <div className="rating">
+                        {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
+                      </div>
+                      <Row gutter={[16, 16]}>
+                        <Col span={8}>
+                          <div
+                            className="poster-container"
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            {imageLoading && (
+                              <Spin
+                                size="large"
+                                style={{
+                                  position: "absolute",
+                                  top: "50%",
+                                  left: "50%",
+                                  transform: "translate(-50%, -50%)",
+                                }}
+                              />
+                            )}
+                            <img
+                              src={posterUrl}
+                              alt={title}
+                              onError={handleImageLoadError}
+                              style={{ height: "100%", width: "100%" }}
+                              onLoad={handleImageLoad}
+                              className="poster"
+                            />
+                          </div>
+                        </Col>
+                        <Col
+                          span={16}
+                          style={{
+                            height: 450,
+                            paddingBottom: 20,
+                            paddingTop: 20,
+                            paddingLeft: 20,
+                            paddingRight: 40,
+                          }}
+                        >
+                          <h2 className="title">{title}</h2>
+                          <p className="date">{date}</p>
+                          <p className="genres">
+                            {genres?.map((genre, i) => {
+                              return (
+                                <span
+                                  className="genre"
+                                  key={i}
+                                  style={{
+                                    marginRight: 7,
+                                    paddingLeft: 3,
+                                    paddingRight: 3,
+                                  }}
+                                >
+                                  {genre}
+                                </span>
+                              );
+                            })}
+                          </p>
+                          <p className="description">{description}</p>
+                          <Rate allowHalf value={rating} count={10} />
+                        </Col>
+                      </Row>
+                    </Card>
+                  </Col>
+                )
+              )}
+          </Row>
+          <div className="pagination">
+            <Pagination
+              current={currentPage}
+              pageSize={pageSize}
+              total={movies.length}
+              onChange={(page) => handlePageChange(page)}
+              style={{ paddingBottom: 20, paddingTop: 20 }}
+            />
+          </div>
+        </>
+      ),
+    },
+    {
+      key: "2",
+      label: "Rated",
+      children: (
+        <>
+          <div className="pagination">
+            <Pagination style={{ paddingBottom: 20, paddingTop: 20 }} />
+          </div>
+          <Row gutter={[0, 40]} justify="space-evenly">
+            <Col span={24} md={11} lg={11} sm={5}>
               <Card
                 className="card"
                 bodyStyle={{
@@ -229,9 +340,7 @@ const MovieList = () => {
                   paddingRight: 0,
                 }}
               >
-                <div className="rating">
-                  {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
-                </div>
+                <div className="rating"></div>
                 <Row gutter={[16, 16]}>
                   <Col span={8}>
                     <div
@@ -244,25 +353,7 @@ const MovieList = () => {
                         alignItems: "center",
                       }}
                     >
-                      {imageLoading && (
-                        <Spin
-                          size="large"
-                          style={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                          }}
-                        />
-                      )}
-                      <img
-                        src={posterUrl}
-                        alt={title}
-                        onError={handleImageLoadError}
-                        style={{ height: "100%", width: "100%" }}
-                        onLoad={handleImageLoad}
-                        className="poster"
-                      />
+                      <img className="poster" alt="" />
                     </div>
                   </Col>
                   <Col
@@ -275,44 +366,39 @@ const MovieList = () => {
                       paddingRight: 40,
                     }}
                   >
-                    <h2 className="title">{title}</h2>
-                    <p className="date">{date}</p>
-                    <p className="genres">
-                      {genres?.map((genre, i) => {
-                        return (
-                          <span
-                            className="genre"
-                            key={i}
-                            style={{
-                              marginRight: 7,
-                              paddingLeft: 3,
-                              paddingRight: 3,
-                            }}
-                          >
-                            {genre}
-                          </span>
-                        );
-                      })}
-                    </p>
-                    <p className="description">{description}</p>
-                    <Rate allowHalf value={rating} count={10} />
+                    <h2 className="title">-</h2>
+                    <p className="date"></p>
+                    <p className="genres"></p>
+                    <p className="description"></p>
+                    <Rate allowHalf count={10} />
                   </Col>
                 </Row>
               </Card>
             </Col>
-          ))}
-      </Row>
-      <div className="pagination">
-        <Pagination
-          current={currentPage}
-          pageSize={pageSize}
-          total={movies.length}
-          onChange={(page) => handlePageChange(page)}
-          style={{ paddingBottom: 20, paddingTop: 20 }}
-        />
-      </div>
-    </>
-  );
+          </Row>
+          <div className="pagination">
+            <Pagination style={{ paddingBottom: 20, paddingTop: 20 }} />
+          </div>
+        </>
+      ),
+    },
+  ];
+  // const filteredMovies =
+  //   activeTab === "search" ? movies : movies.filter((movie) => movie.rated);
+
+  if (pageLoading)
+    return (
+      <Spin
+        size="large"
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+        }}
+      />
+    );
+  return <Tabs defaultActiveKey="1" items={items} onChange={handleTabChange} />;
 };
 
 export default MovieList;

@@ -75,3 +75,9 @@ body {
   top: -20px;
   width: 60px;
 }
+
+.ant-tabs-nav-wrap {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+}
