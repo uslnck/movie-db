@@ -17,8 +17,8 @@ import { useEffect, useState, useRef } from "react";
 class SearchService {
   _baseUrlMovies = "https://api.themoviedb.org/3/search/";
   _baseUrlGenres = "https://api.themoviedb.org/3/genre/movie/list";
-  _baseUrlSession =
-    "https://api.themoviedb.org/3/authentication/guest_session/new";
+  _baseUrlSession = "https://api.themoviedb.org/3/authentication/session/new";
+  _baseUrlToken = "https://api.themoviedb.org/3/authentication/token/new";
   _apiKey = "?api_key=0181923591c91859e91691704fe87633";
   _noAdult = "&include_adult=false";
   _lang = "&language=en-US";
@@ -33,14 +33,24 @@ class SearchService {
     const p = "&page=" + page;
     const fetchMoviesString = `${baseUrl}${searchType}${this._apiKey}${this._lang}${q}${p}${this._noAdult}`;
     const fetchGenresString = `${this._baseUrlGenres}${this._apiKey}`;
-    const fetchSessionString = `${this._baseUrlSession}${this._apiKey}`;
+    const fetchTokenString = `${this._baseUrlToken}${this._apiKey}`;
+    // const fetchSessionString = `${this._baseUrlSession}${this._apiKey}`;
 
     let res = {};
 
     if (baseUrl === this._baseUrlMovies) res = await fetch(fetchMoviesString);
     else if (baseUrl === this._baseUrlGenres)
       res = await fetch(fetchGenresString);
-    else res = await fetch(fetchSessionString);
+    else if (baseUrl === this._baseUrlToken)
+      res = await fetch(fetchTokenString);
+    // else
+    //   res = await fetch(fetchSessionString, {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({
+    //       request_token: "???",
+    //     }),
+    //   });
 
     if (!res.ok) throw new Error("Couldn't fetch URL");
     const body = await res.json();
@@ -57,18 +67,34 @@ class SearchService {
     return res.genres;
   }
 
-  async getSessionId() {
-    const res = await this.getResource("", "", this._baseUrlSession);
-    return res.guest_session_id;
+  // async getSessionId() {
+  //   const res = await this.getResource("", "", this._baseUrlSession);
+  //   return res.session_id;
+  // }
+
+  async getToken() {
+    const res = await this.getResource("", "", this._baseUrlToken);
+    return res.request_token;
   }
 }
 
 const ss = new SearchService();
 
 const MovieList = () => {
-  const [movies, setMovies] = useState([]);
-  const [genres, setGenres] = useState([]);
-  const [sessionId, setSessionId] = useState("");
+  const storedMovies = localStorage.getItem("storedMovies");
+  const moviesState = storedMovies ? JSON.parse(storedMovies) : [];
+  const storedGenres = localStorage.getItem("storedGenres");
+  const genresState = storedGenres ? JSON.parse(storedGenres) : [];
+  const storedToken = localStorage.getItem("storedToken");
+  const tokenState = storedToken ? JSON.parse(storedToken) : "";
+  const storedSessionId = localStorage.getItem("storedSessionId");
+  const sessionState = storedSessionId ? JSON.parse(storedSessionId) : "";
+
+  const [movies, setMovies] = useState(moviesState);
+  const [genres, setGenres] = useState(genresState);
+  const [token, setToken] = useState(tokenState);
+  const [sessionId, setSessionId] = useState(sessionState);
+  const [returnedToken, setReturnedToken] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageLoading, setPageLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
@@ -77,10 +103,106 @@ const MovieList = () => {
   const pageSize = 6;
   const isInitialRender = useRef(true);
 
+  useEffect(() => {
+    localStorage.setItem("storedMovies", JSON.stringify(movies));
+  }, [movies]);
+
+  useEffect(() => {
+    localStorage.setItem("storedGenres", JSON.stringify(genres));
+  }, [genres]);
+
+  useEffect(() => {
+    localStorage.setItem("storedToken", JSON.stringify(token));
+  }, [token]);
+
+  useEffect(() => {
+    localStorage.setItem("storedSessionId", JSON.stringify(sessionId));
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (localStorage.getItem("storedGenres") === "[]") getGenres();
+    if (!token) getToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (returnedToken) getSessionId();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnedToken]);
+
+  useEffect(() => {
+    if (isInitialRender.current) return;
+    if (token) forwardUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  useEffect(() => {
+    if (isInitialRender.current) return;
+    if (localStorage.getItem("storedMovies") === "[]") handleSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [genres]);
+
+  useEffect(() => {
+    refreshPosters();
+    setPageLoading(false);
+  }, [currentPage]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const returnedToken = params.get("request_token");
+    if (returnedToken) {
+      setReturnedToken(returnedToken);
+      console.log("setReturnedToken triggered useEffect for getSessionId");
+      window.history.replaceState(null, null, window.location.pathname);
+    }
+  }, []);
+
+  const forwardUser = () => {
+    console.log("forwarding user...");
+    // window.open
+    return window.location.replace(
+      `https://www.themoviedb.org/authenticate/${token}?redirect_to=http://localhost:3000`
+      /* ?redirect_to=http://localhost:3000  , "_blank"*/
+      //change local to vercel at prod
+    );
+  };
+
+  const getSessionId = async () => {
+    try {
+      console.log(
+        'sending POST that "returned" token triggered:',
+        returnedToken
+      );
+      const session = await fetch(`${ss._baseUrlSession}${ss._apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request_token: `${returnedToken}`,
+        }),
+      });
+      if (!session.ok) throw new Error("Couldn't fetch URL");
+      const body = await session.json();
+      setSessionId(body.session_id);
+    } catch (e) {
+      throw new Error(`${e} (Couldn't create session)`);
+    }
+  };
+
+  const getToken = async () => {
+    try {
+      const token = await ss.getToken();
+      setToken(token);
+      console.log(`token created: ${token}`, Date.now());
+    } catch (e) {
+      throw new Error(`${e} (Couldn't get token)`);
+    }
+  };
+
   const getGenres = async () => {
     try {
       const genreList = await ss.getGenres();
       setGenres(genreList);
+      isInitialRender.current = false;
       console.log("fetched genres", Date.now());
     } catch (e) {
       throw new Error(`${e} (Couldn't fetch genres)`);
@@ -93,16 +215,6 @@ const MovieList = () => {
       console.log("mapped genre text in search");
       return genre ? genre?.name : null;
     });
-  };
-
-  const getSessionId = async () => {
-    try {
-      const sessionId = await ss.getSessionId();
-      setSessionId(sessionId);
-      console.log(`guest session created, id: ${sessionId}`, Date.now());
-    } catch (e) {
-      throw new Error(`${e} (Couldn't create session)`);
-    }
   };
 
   const handleSearch = async (value = "の") => {
@@ -165,26 +277,9 @@ const MovieList = () => {
     console.log("refreshed posters");
   };
 
-  useEffect(() => {
-    getGenres();
-    getSessionId();
-  }, []);
-
-  useEffect(() => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      return;
-    }
-    handleSearch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [genres]);
-
-  useEffect(() => {
-    refreshPosters();
-  }, [currentPage]);
-
   const handleTabChange = (key) => {
     setActiveTab(key);
+    console.log("active tab is:", activeTab);
   };
 
   const items = [
@@ -383,10 +478,11 @@ const MovieList = () => {
       ),
     },
   ];
+
   // const filteredMovies =
   //   activeTab === "search" ? movies : movies.filter((movie) => movie.rated);
 
-  if (pageLoading)
+  if (pageLoading /*&& !localStorage.getItem("storedMovies")*/)
     return (
       <Spin
         size="large"
