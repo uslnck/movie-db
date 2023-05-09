@@ -279,7 +279,7 @@ const MovieList = () => {
 
   const handleTabChange = (key) => {
     setActiveTab(key);
-    console.log("active tab is:", key, activeTab);
+    console.log("active tab was:", activeTab);
   };
 
   const items = [
