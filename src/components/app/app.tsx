@@ -22,6 +22,8 @@ class SearchService {
   _apiKey = "?api_key=0181923591c91859e91691704fe87633";
   _noAdult = "&include_adult=false";
   _lang = "&language=en-US";
+  _baseUrlGuestSession =
+    "https://api.themoviedb.org/3/authentication/guest_session/new";
 
   async getResource(
     query,
@@ -34,7 +36,7 @@ class SearchService {
     const fetchMoviesString = `${baseUrl}${searchType}${this._apiKey}${this._lang}${q}${p}${this._noAdult}`;
     const fetchGenresString = `${this._baseUrlGenres}${this._apiKey}`;
     const fetchTokenString = `${this._baseUrlToken}${this._apiKey}`;
-    // const fetchSessionString = `${this._baseUrlSession}${this._apiKey}`;
+    const fetchGuestSessionString = `${this._baseUrlGuestSession}${this._apiKey}`;
 
     let res = {};
 
@@ -43,14 +45,7 @@ class SearchService {
       res = await fetch(fetchGenresString);
     else if (baseUrl === this._baseUrlToken)
       res = await fetch(fetchTokenString);
-    // else
-    //   res = await fetch(fetchSessionString, {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({
-    //       request_token: "???",
-    //     }),
-    //   });
+    else res = await fetch(fetchGuestSessionString);
 
     if (!res.ok) throw new Error("Couldn't fetch URL");
     const body = await res.json();
@@ -67,14 +62,40 @@ class SearchService {
     return res.genres;
   }
 
-  // async getSessionId() {
-  //   const res = await this.getResource("", "", this._baseUrlSession);
-  //   return res.session_id;
-  // }
+  async getGuestSessionId() {
+    const res = await this.getResource("", "", this._baseUrlGuestSession);
+    return res.guest_session_id;
+  }
 
   async getToken() {
     const res = await this.getResource("", "", this._baseUrlToken);
     return res.request_token;
+  }
+
+  async rateMovie(rating, movieId) {
+    const sessionId = JSON.parse(localStorage.getItem("storedOldSessionId"));
+    const ratingUrl = `https://api.themoviedb.org/3/movie/${movieId}/rating${this._apiKey}&guest_session_id=${sessionId}`;
+    const res = await fetch(ratingUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json;charset=utf-8",
+      },
+      body: JSON.stringify({
+        value: rating,
+      }),
+    });
+    if (!res.ok) throw new Error("Couldn't rate the movie");
+    return await res.json();
+  }
+
+  async getRatedMovies() {
+    const sessionId = JSON.parse(localStorage.getItem("storedOldSessionId"));
+    const res = await fetch(
+      `https://api.themoviedb.org/3/guest_session/${sessionId}/rated/movies${this._apiKey}`
+    ); //&page=1
+    if (!res.ok) throw new Error("Couldn't get rated movies");
+    const body = await res.json();
+    return body.results;
   }
 }
 
@@ -89,19 +110,30 @@ const MovieList = () => {
   const tokenState = storedToken ? JSON.parse(storedToken) : "";
   const storedSessionId = localStorage.getItem("storedSessionId");
   const sessionState = storedSessionId ? JSON.parse(storedSessionId) : "";
+  const storedOldSessionId = localStorage.getItem("storedOldSessionId");
+  const oldSessionState = storedOldSessionId
+    ? JSON.parse(storedOldSessionId)
+    : "";
 
   const [movies, setMovies] = useState(moviesState);
   const [genres, setGenres] = useState(genresState);
   const [token, setToken] = useState(tokenState);
   const [sessionId, setSessionId] = useState(sessionState);
+  const [oldSessionId, setOldSessionId] = useState(oldSessionState);
   const [returnedToken, setReturnedToken] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageLoading, setPageLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
   const [activeTab, setActiveTab] = useState("");
+  const [ratedMovies, setRatedMovies] = useState([]);
+  const [currentRatedPage, setCurrentRatedPage] = useState(1);
   const pageSize = 6;
   const isInitialRender = useRef(true);
+
+  useEffect(() => {
+    console.log("active tab set to:", activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     localStorage.setItem("storedMovies", JSON.stringify(movies));
@@ -120,6 +152,11 @@ const MovieList = () => {
   }, [sessionId]);
 
   useEffect(() => {
+    localStorage.setItem("storedOldSessionId", JSON.stringify(oldSessionId));
+  }, [oldSessionId]);
+
+  useEffect(() => {
+    if (localStorage.getItem("storedOldSessionId") === '""') getOldSessionId();
     if (localStorage.getItem("storedGenres") === "[]") getGenres();
     if (!token) getToken();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -159,11 +196,8 @@ const MovieList = () => {
 
   const forwardUser = () => {
     console.log("forwarding user...");
-    // window.open
     return window.location.replace(
       `https://www.themoviedb.org/authenticate/${token}?redirect_to=https://movie-db-murex-phi.vercel.app/`
-      /* ?redirect_to=http://localhost:3000  , "_blank"*/
-      //change local to vercel at prod
     );
   };
 
@@ -195,6 +229,16 @@ const MovieList = () => {
       console.log(`token created: ${token}`, Date.now());
     } catch (e) {
       throw new Error(`${e} (Couldn't get token)`);
+    }
+  };
+
+  const getOldSessionId = async () => {
+    try {
+      const id = await ss.getGuestSessionId();
+      setOldSessionId(id);
+      console.log(`old guest session created: ${id}`, Date.now());
+    } catch (e) {
+      throw new Error(`${e} (Couldn't create session)`);
     }
   };
 
@@ -231,6 +275,7 @@ const MovieList = () => {
         posterUrl: `${imageBaseURL}${movie?.poster_path}`,
         genres: getGenreText(movie?.genre_ids),
         rating: movie?.vote_average,
+        id: movie?.id,
       }));
       if (movieData.length === 0) message.info("No results found.");
       setMovies(movieData);
@@ -252,13 +297,6 @@ const MovieList = () => {
       "https://upload.wikimedia.org/wikipedia/commons/1/14/No_Image_Available.jpg?20200913095930";
   };
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    setImageLoading(true);
-    window.scrollTo(0, 0);
-    console.log("changed page");
-  };
-
   const handleInputChange = (e) => {
     setSearchText(e.target.value);
   };
@@ -277,9 +315,61 @@ const MovieList = () => {
     console.log("refreshed posters");
   };
 
-  const handleTabChange = (key) => {
+  const handleTabChange = async (key) => {
     setActiveTab(key);
-    console.log("active tab was:", activeTab);
+    if (key === "2") {
+      const rated = await ss.getRatedMovies();
+      console.log("got rated from server:", rated);
+      const ratedWithGenres = rated.map((movie) => {
+        const genreNames = [];
+        for (let id of movie.genre_ids) {
+          const genre = genres.find((g) => g.id === id);
+          genreNames.push(genre ? genre.name : null);
+        }
+        return {
+          ...movie,
+          genres: genreNames,
+        };
+      });
+      setRatedMovies(ratedWithGenres);
+    }
+  };
+
+  const handleRatingChange = async (rating, movieId) => {
+    console.log("sent rating:", rating, movieId);
+    await ss.rateMovie(rating, movieId);
+    console.log("server posted rating");
+  };
+
+  const colorPicker = (rating) => {
+    let color = "";
+    if (rating >= 0 && rating < 3) {
+      color = "#E90000";
+    } else if (rating >= 3 && rating < 5) {
+      color = "#E97E00";
+    } else if (rating >= 5 && rating < 7) {
+      color = "#E9D100";
+    } else if (rating >= 7) {
+      color = "#66E900";
+    }
+    return color;
+  };
+
+  const handlePageChange = (page, tab) => {
+    switch (tab) {
+      case "search":
+        setCurrentPage(page);
+        console.log("changed search page");
+        break;
+      case "rated":
+        setCurrentRatedPage(page);
+        console.log("changed rated page");
+        break;
+      default:
+        break;
+    }
+    setImageLoading(true);
+    window.scrollTo(0, 0);
   };
 
   const items = [
@@ -308,7 +398,7 @@ const MovieList = () => {
               current={currentPage}
               pageSize={pageSize}
               total={movies.length}
-              onChange={(page) => handlePageChange(page)}
+              onChange={(page) => handlePageChange(page, "search")}
               style={{ paddingBottom: 20, paddingTop: 10 }}
             />
           </div>
@@ -316,11 +406,16 @@ const MovieList = () => {
             {movies
               .slice((currentPage - 1) * pageSize, currentPage * pageSize)
               .map(
-                (
-                  { genres, posterUrl, date, description, title, rating },
-                  i
-                ) => (
-                  <Col span={24} md={11} lg={11} sm={5} key={i}>
+                ({
+                  genres,
+                  posterUrl,
+                  date,
+                  description,
+                  title,
+                  rating,
+                  id,
+                }) => (
+                  <Col span={24} md={11} lg={11} sm={5} key={id}>
                     <Card
                       className="card"
                       bodyStyle={{
@@ -330,7 +425,10 @@ const MovieList = () => {
                         paddingRight: 0,
                       }}
                     >
-                      <div className="rating">
+                      <div
+                        className="rating"
+                        style={{ borderColor: colorPicker(rating) }}
+                      >
                         {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
                       </div>
                       <Row gutter={[16, 16]}>
@@ -396,7 +494,14 @@ const MovieList = () => {
                             })}
                           </p>
                           <p className="description">{description}</p>
-                          <Rate allowHalf value={rating} count={10} />
+                          <Rate
+                            allowHalf
+                            defaultValue={0}
+                            onChange={(rating) =>
+                              handleRatingChange(rating, id)
+                            }
+                            count={10}
+                          />
                         </Col>
                       </Row>
                     </Card>
@@ -409,8 +514,8 @@ const MovieList = () => {
               current={currentPage}
               pageSize={pageSize}
               total={movies.length}
-              onChange={(page) => handlePageChange(page)}
-              style={{ paddingBottom: 20, paddingTop: 20 }}
+              onChange={(page) => handlePageChange(page, "search")}
+              style={{ paddingBottom: 20, paddingTop: 10 }}
             />
           </div>
         </>
@@ -422,67 +527,142 @@ const MovieList = () => {
       children: (
         <>
           <div className="pagination">
-            <Pagination style={{ paddingBottom: 20, paddingTop: 20 }} />
+            <Pagination
+              style={{ paddingBottom: 20 }}
+              current={currentRatedPage}
+              pageSize={pageSize}
+              total={ratedMovies.length}
+              onChange={(page) => handlePageChange(page, "rated")}
+            />
           </div>
           <Row gutter={[0, 40]} justify="space-evenly">
-            <Col span={24} md={11} lg={11} sm={5}>
-              <Card
-                className="card"
-                bodyStyle={{
-                  paddingBottom: 0,
-                  paddingTop: 0,
-                  paddingLeft: 0,
-                  paddingRight: 0,
-                }}
-              >
-                <div className="rating"></div>
-                <Row gutter={[16, 16]}>
-                  <Col span={8}>
-                    <div
-                      className="poster-container"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
+            {ratedMovies
+              .slice(
+                (currentRatedPage - 1) * pageSize,
+                currentRatedPage * pageSize
+              )
+              .map(
+                ({
+                  genres,
+                  poster_path,
+                  release_date,
+                  overview,
+                  original_title,
+                  rating,
+                  vote_average,
+                  id,
+                }) => (
+                  <Col span={24} md={11} lg={11} sm={5} key={id}>
+                    <Card
+                      className="card"
+                      bodyStyle={{
+                        paddingBottom: 0,
+                        paddingTop: 0,
+                        paddingLeft: 0,
+                        paddingRight: 0,
                       }}
                     >
-                      <img className="poster" alt="" />
-                    </div>
+                      <div
+                        className="rating"
+                        style={{ borderColor: colorPicker(vote_average) }}
+                      >
+                        {vote_average < 1
+                          ? "NR"
+                          : vote_average?.toFixed(1) || "NR"}
+                      </div>
+                      <Row gutter={[16, 16]}>
+                        <Col span={8}>
+                          <div
+                            className="poster-container"
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            {imageLoading && (
+                              <Spin
+                                size="large"
+                                style={{
+                                  position: "absolute",
+                                  top: "50%",
+                                  left: "50%",
+                                  transform: "translate(-50%, -50%)",
+                                }}
+                              />
+                            )}
+                            <img
+                              src={`https://www.themoviedb.org/t/p/w600_and_h900_bestv2/${poster_path}`}
+                              alt={original_title}
+                              onError={handleImageLoadError}
+                              style={{ height: "100%", width: "100%" }}
+                              onLoad={handleImageLoad}
+                              className="poster"
+                            />
+                          </div>
+                        </Col>
+                        <Col
+                          span={16}
+                          style={{
+                            height: 450,
+                            paddingBottom: 20,
+                            paddingTop: 20,
+                            paddingLeft: 20,
+                            paddingRight: 40,
+                          }}
+                        >
+                          <h2 className="title">{original_title}</h2>
+                          <p className="date">{release_date}</p>
+                          <p className="genres">
+                            {genres.map((genre, i) => {
+                              return (
+                                <span
+                                  className="genre"
+                                  key={i}
+                                  style={{
+                                    marginRight: 7,
+                                    paddingLeft: 3,
+                                    paddingRight: 3,
+                                  }}
+                                >
+                                  {genre}
+                                </span>
+                              );
+                            })}
+                          </p>
+                          <p className="description">{overview}</p>
+                          <Rate
+                            allowHalf
+                            defaultValue={rating}
+                            onChange={(rating) =>
+                              handleRatingChange(rating, id)
+                            }
+                            count={10}
+                          />
+                        </Col>
+                      </Row>
+                    </Card>
                   </Col>
-                  <Col
-                    span={16}
-                    style={{
-                      height: 450,
-                      paddingBottom: 20,
-                      paddingTop: 20,
-                      paddingLeft: 20,
-                      paddingRight: 40,
-                    }}
-                  >
-                    <h2 className="title">-</h2>
-                    <p className="date"></p>
-                    <p className="genres"></p>
-                    <p className="description"></p>
-                    <Rate allowHalf count={10} />
-                  </Col>
-                </Row>
-              </Card>
-            </Col>
+                )
+              )}
           </Row>
           <div className="pagination">
-            <Pagination style={{ paddingBottom: 20, paddingTop: 20 }} />
+            <Pagination
+              style={{ paddingBottom: 20 }}
+              current={currentRatedPage}
+              pageSize={pageSize}
+              total={ratedMovies.length}
+              onChange={(page) => handlePageChange(page, "rated")}
+            />
           </div>
         </>
       ),
     },
   ];
 
-  // const filteredMovies =
-  //   activeTab === "search" ? movies : movies.filter((movie) => movie.rated);
-
-  if (pageLoading /*&& !localStorage.getItem("storedMovies")*/)
+  if (pageLoading)
     return (
       <Spin
         size="large"
