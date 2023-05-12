@@ -120,6 +120,8 @@ const MovieList = () => {
   const totalRatedMoviesState = storedMovies
     ? JSON.parse(storedTotalRatedMovies)
     : [];
+  const storedQuery = localStorage.getItem("storedQuery");
+  const queryState = storedMovies ? JSON.parse(storedQuery) : [];
 
   const [movies, setMovies] = useState(moviesState);
   const [totalMovies, setTotalMovies] = useState(totalMoviesState);
@@ -137,7 +139,7 @@ const MovieList = () => {
   );
   const [currentRatedPage, setCurrentRatedPage] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
-  const [currentQuery, setCurrentQuery] = useState("の");
+  const [currentQuery, setCurrentQuery] = useState("の" || queryState);
 
   const pageSize = 20;
   const isInitialRender = useRef(true);
@@ -145,6 +147,10 @@ const MovieList = () => {
   useEffect(() => {
     console.log("active tab set to:", activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem("storedQuery", JSON.stringify(currentQuery));
+  }, [currentQuery]);
 
   useEffect(() => {
     localStorage.setItem("storedTotalMovies", JSON.stringify(totalMovies));
