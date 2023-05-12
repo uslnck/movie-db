@@ -25,12 +25,7 @@ class SearchService {
   _baseUrlGuestSession =
     "https://api.themoviedb.org/3/authentication/guest_session/new";
 
-  async getResource(
-    query,
-    searchType,
-    baseUrl = this._baseUrlMovies,
-    page = 1
-  ) {
+  async getResource(query, searchType, baseUrl, page) {
     const q = "&query=" + query;
     const p = "&page=" + page;
     const fetchMoviesString = `${baseUrl}${searchType}${this._apiKey}${this._lang}${q}${p}${this._noAdult}`;
@@ -52,9 +47,14 @@ class SearchService {
     return body;
   }
 
-  async getMovies(query) {
-    const res = await this.getResource(query, "movie", this._baseUrlMovies);
-    return res.results;
+  async getMovies(query, page) {
+    const res = await this.getResource(
+      query,
+      "movie",
+      this._baseUrlMovies,
+      page
+    );
+    return [res.results, res.total_results];
   }
 
   async getGenres() {
@@ -88,14 +88,14 @@ class SearchService {
     return await res.json();
   }
 
-  async getRatedMovies() {
+  async getRatedMovies(page) {
     const sessionId = JSON.parse(localStorage.getItem("storedOldSessionId"));
     const res = await fetch(
-      `https://api.themoviedb.org/3/guest_session/${sessionId}/rated/movies${this._apiKey}`
-    ); //&page=1
+      `https://api.themoviedb.org/3/guest_session/${sessionId}/rated/movies${this._apiKey}&page=${page}`
+    );
     if (!res.ok) throw new Error("Couldn't get rated movies");
     const body = await res.json();
-    return body.results;
+    return [body.results, body.total_results];
   }
 }
 
@@ -104,6 +104,8 @@ const ss = new SearchService();
 const MovieList = () => {
   const storedMovies = localStorage.getItem("storedMovies");
   const moviesState = storedMovies ? JSON.parse(storedMovies) : [];
+  const storedTotalMovies = localStorage.getItem("storedTotalMovies");
+  const totalMoviesState = storedMovies ? JSON.parse(storedTotalMovies) : [];
   const storedGenres = localStorage.getItem("storedGenres");
   const genresState = storedGenres ? JSON.parse(storedGenres) : [];
   const storedToken = localStorage.getItem("storedToken");
@@ -114,26 +116,46 @@ const MovieList = () => {
   const oldSessionState = storedOldSessionId
     ? JSON.parse(storedOldSessionId)
     : "";
+  const storedTotalRatedMovies = localStorage.getItem("storedTotalRatedMovies");
+  const totalRatedMoviesState = storedMovies
+    ? JSON.parse(storedTotalRatedMovies)
+    : [];
 
   const [movies, setMovies] = useState(moviesState);
+  const [totalMovies, setTotalMovies] = useState(totalMoviesState);
   const [genres, setGenres] = useState(genresState);
   const [token, setToken] = useState(tokenState);
   const [sessionId, setSessionId] = useState(sessionState);
   const [oldSessionId, setOldSessionId] = useState(oldSessionState);
   const [returnedToken, setReturnedToken] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
   const [pageLoading, setPageLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
-  const [searchText, setSearchText] = useState("");
   const [activeTab, setActiveTab] = useState("");
   const [ratedMovies, setRatedMovies] = useState([]);
+  const [totalRatedMovies, setTotalRatedMovies] = useState(
+    totalRatedMoviesState
+  );
   const [currentRatedPage, setCurrentRatedPage] = useState(1);
-  const pageSize = 6;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentQuery, setCurrentQuery] = useState("の");
+
+  const pageSize = 20;
   const isInitialRender = useRef(true);
 
   useEffect(() => {
     console.log("active tab set to:", activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem("storedTotalMovies", JSON.stringify(totalMovies));
+  }, [totalMovies]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "storedTotalRatedMovies",
+      JSON.stringify(totalRatedMovies)
+    );
+  }, [totalRatedMovies]);
 
   useEffect(() => {
     localStorage.setItem("storedMovies", JSON.stringify(movies));
@@ -180,8 +202,10 @@ const MovieList = () => {
   }, [genres]);
 
   useEffect(() => {
+    if (currentPage === 1) handleSearch(currentQuery, currentPage);
     refreshPosters();
     setPageLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
   useEffect(() => {
@@ -197,7 +221,9 @@ const MovieList = () => {
   const forwardUser = () => {
     console.log("forwarding user...");
     return window.location.replace(
-      `https://www.themoviedb.org/authenticate/${token}?redirect_to=https://movie-db-murex-phi.vercel.app/`
+      `https://www.themoviedb.org/authenticate/${token}?redirect_to=http://localhost:3000/`
+      /* ?redirect_to=http://localhost:3000  , "_blank" */
+      /* ?redirect_to=https://movie-db-murex-phi.vercel.app/ */
     );
   };
 
@@ -261,14 +287,15 @@ const MovieList = () => {
     });
   };
 
-  const handleSearch = async (value = "の") => {
+  const handleSearch = async (query = "の", page = 1) => {
     try {
       setPageLoading(true);
       setImageLoading(true);
+      setCurrentQuery(query);
       const imageBaseURL =
         "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
-      const searchResults = await ss.getMovies(value);
-      const movieData = searchResults.map((movie) => ({
+      const searchResults = await ss.getMovies(query, page);
+      const movieData = searchResults[0].map((movie) => ({
         title: movie?.original_title,
         date: movie?.release_date,
         description: movie?.overview,
@@ -277,7 +304,9 @@ const MovieList = () => {
         rating: movie?.vote_average,
         id: movie?.id,
       }));
+      const total = searchResults[1];
       if (movieData.length === 0) message.info("No results found.");
+      setTotalMovies(total);
       setMovies(movieData);
       setCurrentPage(1);
       setPageLoading(false);
@@ -297,15 +326,6 @@ const MovieList = () => {
       "https://upload.wikimedia.org/wikipedia/commons/1/14/No_Image_Available.jpg?20200913095930";
   };
 
-  const handleInputChange = (e) => {
-    setSearchText(e.target.value);
-  };
-
-  const handlePressEnter = () => {
-    handleSearch(searchText);
-    console.log("initiated new search");
-  };
-
   const refreshPosters = () => {
     const posterContainers = document.querySelectorAll(".poster-container");
     posterContainers.forEach((posterContainer) => {
@@ -315,12 +335,12 @@ const MovieList = () => {
     console.log("refreshed posters");
   };
 
-  const handleTabChange = async (key) => {
+  const handleRatedChange = async (key, page) => {
     setActiveTab(key);
     if (key === "2") {
-      const rated = await ss.getRatedMovies();
+      const rated = await ss.getRatedMovies(page);
       console.log("got rated from server:", rated);
-      const ratedWithGenres = rated.map((movie) => {
+      const ratedWithGenres = rated[0].map((movie) => {
         const genreNames = [];
         for (let id of movie.genre_ids) {
           const genre = genres.find((g) => g.id === id);
@@ -331,6 +351,8 @@ const MovieList = () => {
           genres: genreNames,
         };
       });
+      const totalRated = rated[1];
+      setTotalRatedMovies(totalRated);
       setRatedMovies(ratedWithGenres);
     }
   };
@@ -355,14 +377,16 @@ const MovieList = () => {
     return color;
   };
 
-  const handlePageChange = (page, tab) => {
+  const handlePageChange = async (query, page, tab) => {
     switch (tab) {
       case "search":
+        await handleSearch(query, page);
         setCurrentPage(page);
         console.log("changed search page");
         break;
       case "rated":
         setCurrentRatedPage(page);
+        await handleRatedChange("2", page);
         console.log("changed rated page");
         break;
       default:
@@ -370,6 +394,24 @@ const MovieList = () => {
     }
     setImageLoading(true);
     window.scrollTo(0, 0);
+  };
+
+  const debounce = (fn, debounceTime) => {
+    let timer;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        fn.apply(this, args);
+      }, debounceTime);
+    };
+  };
+
+  const delayedSearch = debounce(handleSearch, 600);
+
+  const handleInputChange = (e) => {
+    let currentQuery = e.target.value;
+    delayedSearch(currentQuery, 1);
+    console.log("commencing new search...");
   };
 
   const items = [
@@ -383,7 +425,6 @@ const MovieList = () => {
               placeholder="Search movies"
               allowClear
               size="large"
-              onPressEnter={handlePressEnter}
               onChange={handleInputChange}
               style={{
                 width: "40%",
@@ -397,124 +438,119 @@ const MovieList = () => {
             <Pagination
               current={currentPage}
               pageSize={pageSize}
-              total={movies.length}
-              onChange={(page) => handlePageChange(page, "search")}
+              total={totalMovies}
+              showSizeChanger={false}
+              onChange={(page) =>
+                handlePageChange(currentQuery, page, "search")
+              }
               style={{ paddingBottom: 20, paddingTop: 10 }}
             />
           </div>
           <Row gutter={[0, 40]} justify="space-evenly">
-            {movies
-              .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-              .map(
-                ({
-                  genres,
-                  posterUrl,
-                  date,
-                  description,
-                  title,
-                  rating,
-                  id,
-                }) => (
-                  <Col span={24} md={11} lg={11} sm={5} key={id}>
-                    <Card
-                      className="card"
-                      bodyStyle={{
-                        paddingBottom: 0,
-                        paddingTop: 0,
-                        paddingLeft: 0,
-                        paddingRight: 0,
-                      }}
+            {movies.map(
+              // .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+              ({ genres, posterUrl, date, description, title, rating, id }) => (
+                <Col span={24} md={11} lg={11} sm={5} key={id}>
+                  <Card
+                    className="card"
+                    bodyStyle={{
+                      paddingBottom: 0,
+                      paddingTop: 0,
+                      paddingLeft: 0,
+                      paddingRight: 0,
+                    }}
+                  >
+                    <div
+                      className="rating"
+                      style={{ borderColor: colorPicker(rating) }}
                     >
-                      <div
-                        className="rating"
-                        style={{ borderColor: colorPicker(rating) }}
-                      >
-                        {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
-                      </div>
-                      <Row gutter={[16, 16]}>
-                        <Col span={8}>
-                          <div
-                            className="poster-container"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              display: "flex",
-                              justifyContent: "center",
-                              alignItems: "center",
-                            }}
-                          >
-                            {imageLoading && (
-                              <Spin
-                                size="large"
-                                style={{
-                                  position: "absolute",
-                                  top: "50%",
-                                  left: "50%",
-                                  transform: "translate(-50%, -50%)",
-                                }}
-                              />
-                            )}
-                            <img
-                              src={posterUrl}
-                              alt={title}
-                              onError={handleImageLoadError}
-                              style={{ height: "100%", width: "100%" }}
-                              onLoad={handleImageLoad}
-                              className="poster"
-                            />
-                          </div>
-                        </Col>
-                        <Col
-                          span={16}
+                      {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
+                    </div>
+                    <Row gutter={[16, 16]}>
+                      <Col span={8}>
+                        <div
+                          className="poster-container"
                           style={{
-                            height: 450,
-                            paddingBottom: 20,
-                            paddingTop: 20,
-                            paddingLeft: 20,
-                            paddingRight: 40,
+                            width: "100%",
+                            height: "100%",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
                           }}
                         >
-                          <h2 className="title">{title}</h2>
-                          <p className="date">{date}</p>
-                          <p className="genres">
-                            {genres?.map((genre, i) => {
-                              return (
-                                <span
-                                  className="genre"
-                                  key={i}
-                                  style={{
-                                    marginRight: 7,
-                                    paddingLeft: 3,
-                                    paddingRight: 3,
-                                  }}
-                                >
-                                  {genre}
-                                </span>
-                              );
-                            })}
-                          </p>
-                          <p className="description">{description}</p>
-                          <Rate
-                            allowHalf
-                            defaultValue={0}
-                            onChange={(rating) =>
-                              handleRatingChange(rating, id)
-                            }
-                            count={10}
+                          {imageLoading && (
+                            <Spin
+                              size="large"
+                              style={{
+                                position: "absolute",
+                                top: "50%",
+                                left: "50%",
+                                transform: "translate(-50%, -50%)",
+                              }}
+                            />
+                          )}
+                          <img
+                            src={posterUrl}
+                            alt={title}
+                            onError={handleImageLoadError}
+                            style={{ height: "100%", width: "100%" }}
+                            onLoad={handleImageLoad}
+                            className="poster"
                           />
-                        </Col>
-                      </Row>
-                    </Card>
-                  </Col>
-                )
-              )}
+                        </div>
+                      </Col>
+                      <Col
+                        span={16}
+                        style={{
+                          height: 450,
+                          paddingBottom: 20,
+                          paddingTop: 20,
+                          paddingLeft: 20,
+                          paddingRight: 40,
+                        }}
+                      >
+                        <h2 className="title">{title}</h2>
+                        <p className="date">{date}</p>
+                        <p className="genres">
+                          {genres?.map((genre, i) => {
+                            return (
+                              <span
+                                className="genre"
+                                key={i}
+                                style={{
+                                  marginRight: 7,
+                                  paddingLeft: 3,
+                                  paddingRight: 3,
+                                }}
+                              >
+                                {genre}
+                              </span>
+                            );
+                          })}
+                        </p>
+                        <p className="description">{description}</p>
+                        <Rate
+                          allowHalf
+                          defaultValue={0}
+                          onChange={(rating) => handleRatingChange(rating, id)}
+                          count={10}
+                        />
+                      </Col>
+                    </Row>
+                  </Card>
+                </Col>
+              )
+            )}
           </Row>
           <div className="pagination">
             <Pagination
               current={currentPage}
               pageSize={pageSize}
-              total={movies.length}
-              onChange={(page) => handlePageChange(page, "search")}
+              total={totalMovies}
+              showSizeChanger={false}
+              onChange={(page) =>
+                handlePageChange(currentQuery, page, "search")
+              }
               style={{ paddingBottom: 20, paddingTop: 10 }}
             />
           </div>
@@ -531,130 +567,123 @@ const MovieList = () => {
               style={{ paddingBottom: 20 }}
               current={currentRatedPage}
               pageSize={pageSize}
-              total={ratedMovies.length}
-              onChange={(page) => handlePageChange(page, "rated")}
+              total={totalRatedMovies}
+              onChange={(page) => handlePageChange("", page, "rated")}
             />
           </div>
           <Row gutter={[0, 40]} justify="space-evenly">
-            {ratedMovies
-              .slice(
-                (currentRatedPage - 1) * pageSize,
-                currentRatedPage * pageSize
-              )
-              .map(
-                ({
-                  genres,
-                  poster_path,
-                  release_date,
-                  overview,
-                  original_title,
-                  rating,
-                  vote_average,
-                  id,
-                }) => (
-                  <Col span={24} md={11} lg={11} sm={5} key={id}>
-                    <Card
-                      className="card"
-                      bodyStyle={{
-                        paddingBottom: 0,
-                        paddingTop: 0,
-                        paddingLeft: 0,
-                        paddingRight: 0,
-                      }}
+            {ratedMovies.map(
+              ({
+                genres,
+                poster_path,
+                release_date,
+                overview,
+                original_title,
+                rating,
+                vote_average,
+                id,
+              }) => (
+                <Col span={24} md={11} lg={11} sm={5} key={id}>
+                  <Card
+                    className="card"
+                    bodyStyle={{
+                      paddingBottom: 0,
+                      paddingTop: 0,
+                      paddingLeft: 0,
+                      paddingRight: 0,
+                    }}
+                  >
+                    <div
+                      className="rating"
+                      style={{ borderColor: colorPicker(vote_average) }}
                     >
-                      <div
-                        className="rating"
-                        style={{ borderColor: colorPicker(vote_average) }}
-                      >
-                        {vote_average < 1
-                          ? "NR"
-                          : vote_average?.toFixed(1) || "NR"}
-                      </div>
-                      <Row gutter={[16, 16]}>
-                        <Col span={8}>
-                          <div
-                            className="poster-container"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              display: "flex",
-                              justifyContent: "center",
-                              alignItems: "center",
-                            }}
-                          >
-                            {imageLoading && (
-                              <Spin
-                                size="large"
-                                style={{
-                                  position: "absolute",
-                                  top: "50%",
-                                  left: "50%",
-                                  transform: "translate(-50%, -50%)",
-                                }}
-                              />
-                            )}
-                            <img
-                              src={`https://www.themoviedb.org/t/p/w600_and_h900_bestv2/${poster_path}`}
-                              alt={original_title}
-                              onError={handleImageLoadError}
-                              style={{ height: "100%", width: "100%" }}
-                              onLoad={handleImageLoad}
-                              className="poster"
-                            />
-                          </div>
-                        </Col>
-                        <Col
-                          span={16}
+                      {vote_average < 1
+                        ? "NR"
+                        : vote_average?.toFixed(1) || "NR"}
+                    </div>
+                    <Row gutter={[16, 16]}>
+                      <Col span={8}>
+                        <div
+                          className="poster-container"
                           style={{
-                            height: 450,
-                            paddingBottom: 20,
-                            paddingTop: 20,
-                            paddingLeft: 20,
-                            paddingRight: 40,
+                            width: "100%",
+                            height: "100%",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
                           }}
                         >
-                          <h2 className="title">{original_title}</h2>
-                          <p className="date">{release_date}</p>
-                          <p className="genres">
-                            {genres.map((genre, i) => {
-                              return (
-                                <span
-                                  className="genre"
-                                  key={i}
-                                  style={{
-                                    marginRight: 7,
-                                    paddingLeft: 3,
-                                    paddingRight: 3,
-                                  }}
-                                >
-                                  {genre}
-                                </span>
-                              );
-                            })}
-                          </p>
-                          <p className="description">{overview}</p>
-                          <Rate
-                            allowHalf
-                            defaultValue={rating}
-                            onChange={(rating) =>
-                              handleRatingChange(rating, id)
-                            }
-                            count={10}
+                          {imageLoading && (
+                            <Spin
+                              size="large"
+                              style={{
+                                position: "absolute",
+                                top: "50%",
+                                left: "50%",
+                                transform: "translate(-50%, -50%)",
+                              }}
+                            />
+                          )}
+                          <img
+                            src={`https://www.themoviedb.org/t/p/w600_and_h900_bestv2/${poster_path}`}
+                            alt={original_title}
+                            onError={handleImageLoadError}
+                            style={{ height: "100%", width: "100%" }}
+                            onLoad={handleImageLoad}
+                            className="poster"
                           />
-                        </Col>
-                      </Row>
-                    </Card>
-                  </Col>
-                )
-              )}
+                        </div>
+                      </Col>
+                      <Col
+                        span={16}
+                        style={{
+                          height: 450,
+                          paddingBottom: 20,
+                          paddingTop: 20,
+                          paddingLeft: 20,
+                          paddingRight: 40,
+                        }}
+                      >
+                        <h2 className="title">{original_title}</h2>
+                        <p className="date">{release_date}</p>
+                        <p className="genres">
+                          {genres.map((genre, i) => {
+                            return (
+                              <span
+                                className="genre"
+                                key={i}
+                                style={{
+                                  marginRight: 7,
+                                  paddingLeft: 3,
+                                  paddingRight: 3,
+                                }}
+                              >
+                                {genre}
+                              </span>
+                            );
+                          })}
+                        </p>
+                        <p className="description">{overview}</p>
+                        <Rate
+                          allowHalf
+                          defaultValue={rating}
+                          onChange={(rating) => handleRatingChange(rating, id)}
+                          count={10}
+                        />
+                      </Col>
+                    </Row>
+                  </Card>
+                </Col>
+              )
+            )}
           </Row>
           <div className="pagination">
             <Pagination
               style={{ paddingBottom: 20 }}
               current={currentRatedPage}
               pageSize={pageSize}
-              total={ratedMovies.length}
-              onChange={(page) => handlePageChange(page, "rated")}
+              total={totalRatedMovies}
+              onChange={(page) => handlePageChange("", page, "rated")}
             />
           </div>
         </>
@@ -674,7 +703,13 @@ const MovieList = () => {
         }}
       />
     );
-  return <Tabs defaultActiveKey="1" items={items} onChange={handleTabChange} />;
+  return (
+    <Tabs
+      defaultActiveKey="1"
+      items={items}
+      onChange={(key) => handleRatedChange(key, currentRatedPage)}
+    />
+  );
 };
 
 export default MovieList;
