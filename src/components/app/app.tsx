@@ -105,7 +105,7 @@ const MovieList = () => {
   const storedMovies = localStorage.getItem("storedMovies");
   const moviesState = storedMovies ? JSON.parse(storedMovies) : [];
   const storedTotalMovies = localStorage.getItem("storedTotalMovies");
-  const totalMoviesState = storedMovies ? JSON.parse(storedTotalMovies) : [];
+  const totalMoviesState = storedMovies ? JSON.parse(storedTotalMovies) : "";
   const storedGenres = localStorage.getItem("storedGenres");
   const genresState = storedGenres ? JSON.parse(storedGenres) : [];
   const storedToken = localStorage.getItem("storedToken");
@@ -119,9 +119,9 @@ const MovieList = () => {
   const storedTotalRatedMovies = localStorage.getItem("storedTotalRatedMovies");
   const totalRatedMoviesState = storedMovies
     ? JSON.parse(storedTotalRatedMovies)
-    : [];
+    : "";
   const storedQuery = localStorage.getItem("storedQuery");
-  const queryState = storedMovies ? JSON.parse(storedQuery) : [];
+  const queryState = storedMovies ? JSON.parse(storedQuery) : "";
 
   const [movies, setMovies] = useState(moviesState);
   const [totalMovies, setTotalMovies] = useState(totalMoviesState);
@@ -139,7 +139,7 @@ const MovieList = () => {
   );
   const [currentRatedPage, setCurrentRatedPage] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
-  const [currentQuery, setCurrentQuery] = useState("の" || queryState);
+  const [currentQuery, setCurrentQuery] = useState(queryState);
 
   const pageSize = 20;
   const isInitialRender = useRef(true);
@@ -295,6 +295,7 @@ const MovieList = () => {
 
   const handleSearch = async (query = "の", page = 1) => {
     try {
+      if (!query) return;
       setPageLoading(true);
       setImageLoading(true);
       setCurrentQuery(query);
