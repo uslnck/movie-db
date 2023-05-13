@@ -227,7 +227,7 @@ const MovieList = () => {
   const forwardUser = () => {
     console.log("forwarding user...");
     return window.location.replace(
-      `https://www.themoviedb.org/authenticate/${token}?redirect_to=http://localhost:3000`
+      `https://www.themoviedb.org/authenticate/${token}?redirect_to=https://movie-db-murex-phi.vercel.app/`
       /* ?redirect_to=http://localhost:3000  , "_blank" */
       /* ?redirect_to=https://movie-db-murex-phi.vercel.app/ */
     );
