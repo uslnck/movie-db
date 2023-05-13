@@ -227,7 +227,7 @@ const MovieList = () => {
   const forwardUser = () => {
     console.log("forwarding user...");
     return window.location.replace(
-      `https://www.themoviedb.org/authenticate/${token}?redirect_to=https://movie-db-murex-phi.vercel.app/`
+      `https://www.themoviedb.org/authenticate/${token}?redirect_to=http://localhost:3000`
       /* ?redirect_to=http://localhost:3000  , "_blank" */
       /* ?redirect_to=https://movie-db-murex-phi.vercel.app/ */
     );
@@ -457,7 +457,7 @@ const MovieList = () => {
             {movies.map(
               // .slice((currentPage - 1) * pageSize, currentPage * pageSize)
               ({ genres, posterUrl, date, description, title, rating, id }) => (
-                <Col span={24} md={11} lg={11} sm={5} key={id}>
+                <Col span={24} md={13} lg={11} sm={13} key={id}>
                   <Card
                     className="card"
                     bodyStyle={{
@@ -590,7 +590,7 @@ const MovieList = () => {
                 vote_average,
                 id,
               }) => (
-                <Col span={24} md={11} lg={11} sm={5} key={id}>
+                <Col span={24} md={13} lg={11} sm={13} key={id}>
                   <Card
                     className="card"
                     bodyStyle={{
