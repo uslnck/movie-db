@@ -17,29 +17,33 @@ import { useEffect, useState, useRef } from "react";
 class SearchService {
   _baseUrlMovies = "https://api.themoviedb.org/3/search/";
   _baseUrlGenres = "https://api.themoviedb.org/3/genre/movie/list";
-  _baseUrlSession = "https://api.themoviedb.org/3/authentication/session/new";
-  _baseUrlToken = "https://api.themoviedb.org/3/authentication/token/new";
+  // _baseUrlSession = "https://api.themoviedb.org/3/authentication/session/new";
+  // _baseUrlToken = "https://api.themoviedb.org/3/authentication/token/new";
   _apiKey = "?api_key=0181923591c91859e91691704fe87633";
   _noAdult = "&include_adult=false";
   _lang = "&language=en-US";
   _baseUrlGuestSession =
     "https://api.themoviedb.org/3/authentication/guest_session/new";
+  _baseUrlTrending = "https://api.themoviedb.org/3/trending/movie/day";
 
   async getResource(query, searchType, baseUrl, page) {
     const q = "&query=" + query;
     const p = "&page=" + page;
     const fetchMoviesString = `${baseUrl}${searchType}${this._apiKey}${this._lang}${q}${p}${this._noAdult}`;
     const fetchGenresString = `${this._baseUrlGenres}${this._apiKey}`;
-    const fetchTokenString = `${this._baseUrlToken}${this._apiKey}`;
+    // const fetchTokenString = `${this._baseUrlToken}${this._apiKey}`;
     const fetchGuestSessionString = `${this._baseUrlGuestSession}${this._apiKey}`;
+    const fetchTrendingString = `${this._baseUrlTrending}${this._apiKey}`;
 
     let res = {};
 
     if (baseUrl === this._baseUrlMovies) res = await fetch(fetchMoviesString);
     else if (baseUrl === this._baseUrlGenres)
       res = await fetch(fetchGenresString);
-    else if (baseUrl === this._baseUrlToken)
-      res = await fetch(fetchTokenString);
+    // else if (baseUrl === this._baseUrlToken)
+    //   res = await fetch(fetchTokenString);
+    else if (baseUrl === this._baseUrlTrending)
+      res = await fetch(fetchTrendingString);
     else res = await fetch(fetchGuestSessionString);
 
     if (!res.ok) throw new Error("Couldn't fetch URL");
@@ -67,10 +71,10 @@ class SearchService {
     return res.guest_session_id;
   }
 
-  async getToken() {
-    const res = await this.getResource("", "", this._baseUrlToken);
-    return res.request_token;
-  }
+  // async getToken() {
+  //   const res = await this.getResource("", "", this._baseUrlToken);
+  //   return res.request_token;
+  // }
 
   async rateMovie(rating, movieId) {
     const sessionId = JSON.parse(localStorage.getItem("storedOldSessionId"));
@@ -102,47 +106,47 @@ class SearchService {
 const ss = new SearchService();
 
 const MovieList = () => {
-  const storedMovies = localStorage.getItem("storedMovies");
-  const moviesState = storedMovies ? JSON.parse(storedMovies) : [];
-  const storedTotalMovies = localStorage.getItem("storedTotalMovies");
-  const totalMoviesState = storedMovies ? JSON.parse(storedTotalMovies) : "";
+  // const storedMovies = localStorage.getItem("storedMovies");
+  // const moviesState = storedMovies ? JSON.parse(storedMovies) : [];
+  // const storedTotalMovies = localStorage.getItem("storedTotalMovies");
+  // const totalMoviesState = storedMovies ? JSON.parse(storedTotalMovies) : "";
   const storedGenres = localStorage.getItem("storedGenres");
   const genresState = storedGenres ? JSON.parse(storedGenres) : [];
-  const storedToken = localStorage.getItem("storedToken");
-  const tokenState = storedToken ? JSON.parse(storedToken) : "";
-  const storedSessionId = localStorage.getItem("storedSessionId");
-  const sessionState = storedSessionId ? JSON.parse(storedSessionId) : "";
+  // const storedToken = localStorage.getItem("storedToken");
+  // const tokenState = storedToken ? JSON.parse(storedToken) : "";
+  // const storedSessionId = localStorage.getItem("storedSessionId");
+  // const sessionState = storedSessionId ? JSON.parse(storedSessionId) : "";
   const storedOldSessionId = localStorage.getItem("storedOldSessionId");
   const oldSessionState = storedOldSessionId
     ? JSON.parse(storedOldSessionId)
     : "";
-  const storedTotalRatedMovies = localStorage.getItem("storedTotalRatedMovies");
-  const totalRatedMoviesState = storedMovies
-    ? JSON.parse(storedTotalRatedMovies)
-    : "";
-  const storedQuery = localStorage.getItem("storedQuery");
-  const queryState = storedMovies ? JSON.parse(storedQuery) : "";
+  // const storedTotalRatedMovies = localStorage.getItem("storedTotalRatedMovies");
+  // const totalRatedMoviesState = storedMovies
+  //   ? JSON.parse(storedTotalRatedMovies)
+  //   : "";
+  // const storedQuery = localStorage.getItem("storedQuery");
+  // const queryState = storedMovies ? JSON.parse(storedQuery) : "";
 
-  const [movies, setMovies] = useState(moviesState);
-  const [totalMovies, setTotalMovies] = useState(totalMoviesState);
+  const [movies, setMovies] = useState("");
+  const [trending, setTrending] = useState("");
+  const [totalMovies, setTotalMovies] = useState("");
   const [genres, setGenres] = useState(genresState);
-  const [token, setToken] = useState(tokenState);
-  const [sessionId, setSessionId] = useState(sessionState);
+  // const [token, setToken] = useState(tokenState);
+  // const [sessionId, setSessionId] = useState(sessionState);
   const [oldSessionId, setOldSessionId] = useState(oldSessionState);
-  const [returnedToken, setReturnedToken] = useState("");
+  // const [returnedToken, setReturnedToken] = useState("");
   const [pageLoading, setPageLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("");
   const [ratedMovies, setRatedMovies] = useState([]);
-  const [totalRatedMovies, setTotalRatedMovies] = useState(
-    totalRatedMoviesState
-  );
+  const [totalRatedMovies, setTotalRatedMovies] = useState("");
   const [currentRatedPage, setCurrentRatedPage] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
-  const [currentQuery, setCurrentQuery] = useState(queryState);
+  const [currentQuery, setCurrentQuery] = useState("");
 
   const pageSize = 20;
   const isInitialRender = useRef(true);
+  const imageBaseURL = "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
 
   useEffect(() => {
     console.log("active tab set to:", activeTab);
@@ -163,106 +167,107 @@ const MovieList = () => {
     );
   }, [totalRatedMovies]);
 
-  useEffect(() => {
-    localStorage.setItem("storedMovies", JSON.stringify(movies));
-  }, [movies]);
+  // useEffect(() => {
+  //   localStorage.setItem("storedMovies", JSON.stringify(movies));
+  // }, [movies]);
 
   useEffect(() => {
     localStorage.setItem("storedGenres", JSON.stringify(genres));
   }, [genres]);
 
-  useEffect(() => {
-    localStorage.setItem("storedToken", JSON.stringify(token));
-  }, [token]);
+  // useEffect(() => {
+  //   localStorage.setItem("storedToken", JSON.stringify(token));
+  // }, [token]);
 
-  useEffect(() => {
-    localStorage.setItem("storedSessionId", JSON.stringify(sessionId));
-  }, [sessionId]);
+  // useEffect(() => {
+  //   localStorage.setItem("storedSessionId", JSON.stringify(sessionId));
+  // }, [sessionId]);
 
   useEffect(() => {
     localStorage.setItem("storedOldSessionId", JSON.stringify(oldSessionId));
   }, [oldSessionId]);
 
   useEffect(() => {
+    handleMainPageLoad();
     if (localStorage.getItem("storedOldSessionId") === '""') getOldSessionId();
     if (localStorage.getItem("storedGenres") === "[]") getGenres();
-    if (!token) getToken();
+    // if (!token) getToken();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (returnedToken) getSessionId();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [returnedToken]);
+  // useEffect(() => {
+  // if (returnedToken) getSessionId();
+  // // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [returnedToken]);
 
-  useEffect(() => {
-    if (isInitialRender.current) return;
-    if (token) forwardUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  // useEffect(() => {
+  //   if (isInitialRender.current) return;
+  //   if (token) forwardUser();
+  //   //eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [token]);
 
-  useEffect(() => {
-    if (isInitialRender.current) return;
-    if (localStorage.getItem("storedMovies") === "[]") handleSearch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [genres]);
+  // useEffect(() => {
+  //   if (isInitialRender.current) return;
+  //   if (localStorage.getItem("storedMovies") === "[]") handleSearch();
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [genres]);
 
-  useEffect(() => {
-    if (currentPage === 1) handleSearch(currentQuery, currentPage);
-    refreshPosters();
-    setPageLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage]);
+  // useEffect(() => {
+  //   if (currentPage === 1) handleSearch(currentQuery, currentPage);
+  //   refreshPosters();
+  //   setPageLoading(false);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [currentPage]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const returnedToken = params.get("request_token");
-    if (returnedToken) {
-      setReturnedToken(returnedToken);
-      console.log("setReturnedToken triggered useEffect for getSessionId");
-      window.history.replaceState(null, null, window.location.pathname);
-    }
-  }, []);
+  // useEffect(() => {
+  //   const params = new URLSearchParams(window.location.search);
+  //   const returnedToken = params.get("request_token");
+  //   if (returnedToken) {
+  //     setReturnedToken(returnedToken);
+  //     console.log("setReturnedToken triggered useEffect for getSessionId");
+  //     window.history.replaceState(null, null, window.location.pathname);
+  //   }
+  // }, []);
 
-  const forwardUser = () => {
-    console.log("forwarding user...");
-    return window.location.replace(
-      `https://www.themoviedb.org/authenticate/${token}?redirect_to=https://movie-db-murex-phi.vercel.app/`
-      /* ?redirect_to=http://localhost:3000  , "_blank" */
-      /* ?redirect_to=https://movie-db-murex-phi.vercel.app/ */
-    );
-  };
+  // const forwardUser = () => {
+  //   console.log("forwarding user...");
+  //   return window.location.replace(
+  //     `https://www.themoviedb.org/authenticate/${token}?redirect_to=http://localhost:3000`
+  /* ?redirect_to=http://localhost:3000  , "_blank" */
+  /* ?redirect_to=https://movie-db-murex-phi.vercel.app/ */
+  //   );
+  // };
 
-  const getSessionId = async () => {
-    try {
-      console.log(
-        'sending POST that "returned" token triggered:',
-        returnedToken
-      );
-      const session = await fetch(`${ss._baseUrlSession}${ss._apiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          request_token: `${returnedToken}`,
-        }),
-      });
-      if (!session.ok) throw new Error("Couldn't fetch URL");
-      const body = await session.json();
-      setSessionId(body.session_id);
-    } catch (e) {
-      throw new Error(`${e} (Couldn't create session)`);
-    }
-  };
+  // const getSessionId = async () => {
+  //   try {
+  //     console.log(
+  //       'sending POST that "returned" token triggered:',
+  //       returnedToken
+  //     );
+  //     const session = await fetch(`${ss._baseUrlSession}${ss._apiKey}`, {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         request_token: `${returnedToken}`,
+  //       }),
+  //     });
+  //     if (!session.ok) throw new Error("Couldn't fetch URL");
+  //     const body = await session.json();
+  //     setSessionId(body.session_id);
+  //   } catch (e) {
+  //     throw new Error(`${e} (Couldn't create session)`);
+  //   }
+  // };
 
-  const getToken = async () => {
-    try {
-      const token = await ss.getToken();
-      setToken(token);
-      console.log(`token created: ${token}`, Date.now());
-    } catch (e) {
-      throw new Error(`${e} (Couldn't get token)`);
-    }
-  };
+  // const getToken = async () => {
+  //   try {
+  //     const token = await ss.getToken();
+  //     setToken(token);
+  //     console.log(`token created: ${token}`, Date.now());
+  //   } catch (e) {
+  //     throw new Error(`${e} (Couldn't get token)`);
+  //   }
+  // };
 
   const getOldSessionId = async () => {
     try {
@@ -299,8 +304,6 @@ const MovieList = () => {
       setPageLoading(true);
       setImageLoading(true);
       setCurrentQuery(query);
-      const imageBaseURL =
-        "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
       const searchResults = await ss.getMovies(query, page);
       const movieData = searchResults[0].map((movie) => ({
         title: movie?.original_title,
@@ -315,7 +318,6 @@ const MovieList = () => {
       if (movieData.length === 0) message.info("No results found.");
       setTotalMovies(total);
       setMovies(movieData);
-      setCurrentPage(1);
       setPageLoading(false);
       console.log("handled search", Date.now());
     } catch (e) {
@@ -333,14 +335,14 @@ const MovieList = () => {
       "https://upload.wikimedia.org/wikipedia/commons/1/14/No_Image_Available.jpg?20200913095930";
   };
 
-  const refreshPosters = () => {
-    const posterContainers = document.querySelectorAll(".poster-container");
-    posterContainers.forEach((posterContainer) => {
-      const poster = posterContainer.querySelector(".poster");
-      posterContainer.replaceChild(poster, poster);
-    });
-    console.log("refreshed posters");
-  };
+  // const refreshPosters = () => {
+  //   const posterContainers = document.querySelectorAll(".poster-container");
+  //   posterContainers.forEach((posterContainer) => {
+  //     const poster = posterContainer.querySelector(".poster");
+  //     posterContainer.replaceChild(poster, poster);
+  //   });
+  //   console.log("refreshed posters");
+  // };
 
   const handleRatedChange = async (key, page) => {
     setActiveTab(key);
@@ -421,6 +423,43 @@ const MovieList = () => {
     console.log("commencing new search...");
   };
 
+  const handleMainPageLoad = async () => {
+    setPageLoading(true);
+    setImageLoading(true);
+    const res = await ss.getResource("", "", ss._baseUrlTrending);
+    const body = await res.results;
+    const movieData = body.map((movie) => ({
+      title: movie?.original_title,
+      date: movie?.release_date,
+      description: movie?.overview,
+      posterUrl: `${imageBaseURL}${movie?.poster_path}`,
+      genres: getGenreText(movie?.genre_ids),
+      rating: movie?.vote_average,
+      id: movie?.id,
+    }));
+    setTrending(movieData);
+    setPageLoading(false);
+    console.log("handled trending search", Date.now());
+  };
+
+  // const Spinner = () => {
+  //   if (pageLoading) {
+  //     return (
+  //       <Spin
+  //         size="large"
+  //         style={{
+  //           position: "absolute",
+  //           top: "50%",
+  //           left: "50%",
+  //           transform: "translate(-50%, -50%)",
+  //         }}
+  //       />
+  //     );
+  //   }
+  // };
+
+  // .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   const items = [
     {
       key: "1",
@@ -441,126 +480,141 @@ const MovieList = () => {
               }}
             />
           </div>
-          <div className="pagination">
-            <Pagination
-              current={currentPage}
-              pageSize={pageSize}
-              total={totalMovies}
-              showSizeChanger={false}
-              onChange={(page) =>
-                handlePageChange(currentQuery, page, "search")
-              }
-              style={{ paddingBottom: 20, paddingTop: 10 }}
-            />
-          </div>
-          <Row gutter={[0, 40]} justify="space-evenly">
-            {movies.map(
-              // .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-              ({ genres, posterUrl, date, description, title, rating, id }) => (
-                <Col span={24} md={13} lg={11} sm={13} key={id}>
-                  <Card
-                    className="card"
-                    bodyStyle={{
-                      paddingBottom: 0,
-                      paddingTop: 0,
-                      paddingLeft: 0,
-                      paddingRight: 0,
-                    }}
-                  >
-                    <div
-                      className="rating"
-                      style={{ borderColor: colorPicker(rating) }}
-                    >
-                      {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
-                    </div>
-                    <Row gutter={[16, 16]}>
-                      <Col span={8}>
-                        <div
-                          className="poster-container"
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                          }}
-                        >
-                          {imageLoading && (
-                            <Spin
-                              size="large"
-                              style={{
-                                position: "absolute",
-                                top: "50%",
-                                left: "50%",
-                                transform: "translate(-50%, -50%)",
-                              }}
-                            />
-                          )}
-                          <img
-                            src={posterUrl}
-                            alt={title}
-                            onError={handleImageLoadError}
-                            style={{ height: "100%", width: "100%" }}
-                            onLoad={handleImageLoad}
-                            className="poster"
-                          />
-                        </div>
-                      </Col>
-                      <Col
-                        span={16}
-                        style={{
-                          height: 450,
-                          paddingBottom: 20,
-                          paddingTop: 20,
-                          paddingLeft: 20,
-                          paddingRight: 40,
+          {!pageLoading && (
+            <>
+              <div className="pagination">
+                <Pagination
+                  current={currentPage}
+                  pageSize={pageSize}
+                  total={totalMovies || 1}
+                  showSizeChanger={false}
+                  onChange={(page) =>
+                    handlePageChange(currentQuery, page, "search")
+                  }
+                  style={{ paddingBottom: 20, paddingTop: 10 }}
+                />
+              </div>
+              {/* List 
+                    Card*/}
+              <Row gutter={[0, 40]} justify="space-evenly">
+                {(movies || trending).map(
+                  ({
+                    genres,
+                    posterUrl,
+                    date,
+                    description,
+                    title,
+                    rating,
+                    id,
+                  }) => (
+                    <Col span={24} md={13} lg={11} sm={13} key={id}>
+                      <Card
+                        className="card"
+                        bodyStyle={{
+                          paddingBottom: 0,
+                          paddingTop: 0,
+                          paddingLeft: 0,
+                          paddingRight: 0,
                         }}
                       >
-                        <h2 className="title">{title}</h2>
-                        <p className="date">{date}</p>
-                        <p className="genres">
-                          {genres?.map((genre, i) => {
-                            return (
-                              <span
-                                className="genre"
-                                key={i}
-                                style={{
-                                  marginRight: 7,
-                                  paddingLeft: 3,
-                                  paddingRight: 3,
-                                }}
-                              >
-                                {genre}
-                              </span>
-                            );
-                          })}
-                        </p>
-                        <p className="description">{description}</p>
-                        <Rate
-                          allowHalf
-                          defaultValue={0}
-                          onChange={(rating) => handleRatingChange(rating, id)}
-                          count={10}
-                        />
-                      </Col>
-                    </Row>
-                  </Card>
-                </Col>
-              )
-            )}
-          </Row>
-          <div className="pagination">
-            <Pagination
-              current={currentPage}
-              pageSize={pageSize}
-              total={totalMovies}
-              showSizeChanger={false}
-              onChange={(page) =>
-                handlePageChange(currentQuery, page, "search")
-              }
-              style={{ paddingBottom: 20, paddingTop: 10 }}
-            />
-          </div>
+                        <div
+                          className="rating"
+                          style={{ borderColor: colorPicker(rating) }}
+                        >
+                          {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
+                        </div>
+                        <Row gutter={[16, 16]}>
+                          <Col span={8}>
+                            <div
+                              className="poster-container"
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                              }}
+                            >
+                              {imageLoading && (
+                                <Spin
+                                  size="large"
+                                  style={{
+                                    position: "absolute",
+                                    top: "50%",
+                                    left: "50%",
+                                    transform: "translate(-50%, -50%)",
+                                  }}
+                                />
+                              )}
+                              <img
+                                src={posterUrl}
+                                alt={title}
+                                onError={handleImageLoadError}
+                                style={{ height: "100%", width: "100%" }}
+                                onLoad={handleImageLoad}
+                                className="poster"
+                              />
+                            </div>
+                          </Col>
+                          <Col
+                            span={16}
+                            style={{
+                              height: 450,
+                              paddingBottom: 20,
+                              paddingTop: 20,
+                              paddingLeft: 20,
+                              paddingRight: 40,
+                            }}
+                          >
+                            <h2 className="title">{title}</h2>
+                            <p className="date">{date}</p>
+                            <p className="genres">
+                              {genres?.map((genre, i) => {
+                                return (
+                                  <span
+                                    className="genre"
+                                    key={i}
+                                    style={{
+                                      marginRight: 7,
+                                      paddingLeft: 3,
+                                      paddingRight: 3,
+                                    }}
+                                  >
+                                    {genre}
+                                  </span>
+                                );
+                              })}
+                            </p>
+                            <p className="description">{description}</p>
+                            <Rate
+                              allowHalf
+                              defaultValue={0}
+                              onChange={(rating) =>
+                                handleRatingChange(rating, id)
+                              }
+                              count={10}
+                            />
+                          </Col>
+                        </Row>
+                      </Card>
+                    </Col>
+                  )
+                )}
+              </Row>
+              <div className="pagination">
+                <Pagination
+                  current={currentPage}
+                  pageSize={pageSize}
+                  total={totalMovies}
+                  showSizeChanger={false}
+                  onChange={(page) =>
+                    handlePageChange(currentQuery, page, "search")
+                  }
+                  style={{ paddingBottom: 20, paddingTop: 10 }}
+                />
+              </div>
+            </>
+          )}
         </>
       ),
     },
