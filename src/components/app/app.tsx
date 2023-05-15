@@ -10,9 +10,12 @@ import {
   Spin,
   Input,
   Tabs,
+  List,
   message,
 } from "antd";
 import { useEffect, useState, useRef } from "react";
+
+import CustomCard from "../custom-card";
 
 class SearchService {
   _baseUrlMovies = "https://api.themoviedb.org/3/search/";
@@ -149,6 +152,7 @@ const MovieList = () => {
   const imageBaseURL = "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
 
   useEffect(() => {
+    if (isInitialRender.current) return;
     console.log("active tab set to:", activeTab);
   }, [activeTab]);
 
@@ -191,6 +195,7 @@ const MovieList = () => {
     handleMainPageLoad();
     if (localStorage.getItem("storedOldSessionId") === '""') getOldSessionId();
     if (localStorage.getItem("storedGenres") === "[]") getGenres();
+    isInitialRender.current = false;
     // if (!token) getToken();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -283,7 +288,6 @@ const MovieList = () => {
     try {
       const genreList = await ss.getGenres();
       setGenres(genreList);
-      isInitialRender.current = false;
       console.log("fetched genres", Date.now());
     } catch (e) {
       throw new Error(`${e} (Couldn't fetch genres)`);
@@ -318,6 +322,7 @@ const MovieList = () => {
       if (movieData.length === 0) message.info("No results found.");
       setTotalMovies(total);
       setMovies(movieData);
+      setCurrentPage(1);
       setPageLoading(false);
       console.log("handled search", Date.now());
     } catch (e) {
@@ -442,21 +447,22 @@ const MovieList = () => {
     console.log("handled trending search", Date.now());
   };
 
-  // const Spinner = () => {
-  //   if (pageLoading) {
-  //     return (
-  //       <Spin
-  //         size="large"
-  //         style={{
-  //           position: "absolute",
-  //           top: "50%",
-  //           left: "50%",
-  //           transform: "translate(-50%, -50%)",
-  //         }}
-  //       />
-  //     );
-  //   }
-  // };
+  const Spinner = () => {
+    if (pageLoading) {
+      return (
+        <Spin
+          size="large"
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            height: "0",
+          }}
+        />
+      );
+    }
+  };
 
   // .slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
@@ -480,141 +486,73 @@ const MovieList = () => {
               }}
             />
           </div>
-          {!pageLoading && (
-            <>
-              <div className="pagination">
-                <Pagination
-                  current={currentPage}
-                  pageSize={pageSize}
-                  total={totalMovies || 1}
-                  showSizeChanger={false}
-                  onChange={(page) =>
-                    handlePageChange(currentQuery, page, "search")
-                  }
-                  style={{ paddingBottom: 20, paddingTop: 10 }}
-                />
-              </div>
-              {/* List 
-                    Card*/}
-              <Row gutter={[0, 40]} justify="space-evenly">
-                {(movies || trending).map(
-                  ({
-                    genres,
-                    posterUrl,
-                    date,
-                    description,
-                    title,
-                    rating,
-                    id,
-                  }) => (
-                    <Col span={24} md={13} lg={11} sm={13} key={id}>
-                      <Card
-                        className="card"
-                        bodyStyle={{
-                          paddingBottom: 0,
-                          paddingTop: 0,
-                          paddingLeft: 0,
-                          paddingRight: 0,
-                        }}
-                      >
-                        <div
-                          className="rating"
-                          style={{ borderColor: colorPicker(rating) }}
-                        >
-                          {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
-                        </div>
-                        <Row gutter={[16, 16]}>
-                          <Col span={8}>
-                            <div
-                              className="poster-container"
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                              }}
-                            >
-                              {imageLoading && (
-                                <Spin
-                                  size="large"
-                                  style={{
-                                    position: "absolute",
-                                    top: "50%",
-                                    left: "50%",
-                                    transform: "translate(-50%, -50%)",
-                                  }}
-                                />
-                              )}
-                              <img
-                                src={posterUrl}
-                                alt={title}
-                                onError={handleImageLoadError}
-                                style={{ height: "100%", width: "100%" }}
-                                onLoad={handleImageLoad}
-                                className="poster"
-                              />
-                            </div>
-                          </Col>
-                          <Col
-                            span={16}
-                            style={{
-                              height: 450,
-                              paddingBottom: 20,
-                              paddingTop: 20,
-                              paddingLeft: 20,
-                              paddingRight: 40,
-                            }}
-                          >
-                            <h2 className="title">{title}</h2>
-                            <p className="date">{date}</p>
-                            <p className="genres">
-                              {genres?.map((genre, i) => {
-                                return (
-                                  <span
-                                    className="genre"
-                                    key={i}
-                                    style={{
-                                      marginRight: 7,
-                                      paddingLeft: 3,
-                                      paddingRight: 3,
-                                    }}
-                                  >
-                                    {genre}
-                                  </span>
-                                );
-                              })}
-                            </p>
-                            <p className="description">{description}</p>
-                            <Rate
-                              allowHalf
-                              defaultValue={0}
-                              onChange={(rating) =>
-                                handleRatingChange(rating, id)
-                              }
-                              count={10}
-                            />
-                          </Col>
-                        </Row>
-                      </Card>
-                    </Col>
-                  )
+          <div className="pagination">
+            <Pagination
+              current={currentPage}
+              pageSize={pageSize}
+              total={totalMovies || 1}
+              showSizeChanger={false}
+              onChange={(page) =>
+                handlePageChange(currentQuery, page, "search")
+              }
+              style={{ paddingBottom: 10, paddingTop: 10 }}
+            />
+          </div>
+          {Spinner() || (
+            <div className="list-container">
+              <List
+                grid={{
+                  gutter: [16, 16],
+                  md: 1,
+                  lg: 2,
+                  xl: 2,
+                  xxl: 2,
+                }}
+                dataSource={movies || trending}
+                renderItem={({
+                  genres,
+                  posterUrl,
+                  date,
+                  description,
+                  title,
+                  rating,
+                  id,
+                }) => (
+                  <List.Item
+                    className="list-item"
+                    style={{ marginLeft: "50px", marginRight: "50px" }}
+                  >
+                    <CustomCard
+                      imageLoading={imageLoading}
+                      genres={genres}
+                      posterUrl={posterUrl}
+                      date={date}
+                      description={description}
+                      title={title}
+                      rating={rating}
+                      id={id}
+                      handleImageLoadError={handleImageLoadError}
+                      handleImageLoad={handleImageLoad}
+                      handleRatingChange={handleRatingChange}
+                      colorPicker={colorPicker}
+                    />
+                  </List.Item>
                 )}
-              </Row>
-              <div className="pagination">
-                <Pagination
-                  current={currentPage}
-                  pageSize={pageSize}
-                  total={totalMovies}
-                  showSizeChanger={false}
-                  onChange={(page) =>
-                    handlePageChange(currentQuery, page, "search")
-                  }
-                  style={{ paddingBottom: 20, paddingTop: 10 }}
-                />
-              </div>
-            </>
+              />
+            </div>
           )}
+          <div className="pagination">
+            <Pagination
+              current={currentPage}
+              pageSize={pageSize}
+              total={totalMovies || 1}
+              showSizeChanger={false}
+              onChange={(page) =>
+                handlePageChange(currentQuery, page, "search")
+              }
+              style={{ paddingBottom: 20, paddingTop: 10 }}
+            />
+          </div>
         </>
       ),
     },
@@ -752,18 +690,6 @@ const MovieList = () => {
     },
   ];
 
-  if (pageLoading)
-    return (
-      <Spin
-        size="large"
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-        }}
-      />
-    );
   return (
     <Tabs
       defaultActiveKey="1"
