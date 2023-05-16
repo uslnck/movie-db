@@ -10,6 +10,7 @@ const CustomCard = ({
   description,
   title,
   rating,
+  vote,
   id,
   handleImageLoadError,
   handleImageLoad,
@@ -25,8 +26,8 @@ const CustomCard = ({
       paddingRight: 0,
     }}
   >
-    <div className="rating" style={{ borderColor: colorPicker(rating) }}>
-      {rating < 1 ? "NR" : rating?.toFixed(1) || "NR"}
+    <div className="rating" style={{ borderColor: colorPicker(vote) }}>
+      {vote < 1 ? "NR" : vote?.toFixed(1) || "NR"}
     </div>
     <Row gutter={[16, 16]}>
       <Col span={8}>
@@ -93,7 +94,7 @@ const CustomCard = ({
         <p className="description">{description}</p>
         <Rate
           allowHalf
-          defaultValue={0}
+          defaultValue={rating}
           onChange={(rating) => handleRatingChange(rating, id)}
           count={10}
         />
