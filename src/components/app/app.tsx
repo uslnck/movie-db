@@ -415,10 +415,15 @@ const MovieList = () => {
 
   const delayedSearch = debounce(handleSearch, 600);
 
+  const handleClear = () => {
+    window.location.reload();
+  };
+
   const handleInputChange = (e) => {
     let currentQuery = e.target.value;
     delayedSearch(currentQuery, 1);
     console.log("commencing new search...");
+    if (currentQuery === "") handleClear();
   };
 
   const handleMainPageLoad = async () => {
