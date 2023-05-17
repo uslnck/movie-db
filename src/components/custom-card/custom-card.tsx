@@ -2,6 +2,24 @@
 
 import { Row, Col, Card, Spin, Rate } from "antd";
 
+const ratingPicker = (vote) => {
+  return vote < 1 ? "NR" : vote?.toFixed(1) || "NR";
+};
+
+const colorPicker = (vote) => {
+  let color = "";
+  if (vote >= 0 && vote < 3) {
+    color = "#E90000";
+  } else if (vote >= 3 && vote < 5) {
+    color = "#E97E00";
+  } else if (vote >= 5 && vote < 7) {
+    color = "#E9D100";
+  } else if (vote >= 7) {
+    color = "#66E900";
+  }
+  return color;
+};
+
 const CustomCard = ({
   imageLoading,
   genres,
@@ -15,7 +33,6 @@ const CustomCard = ({
   handleImageLoadError,
   handleImageLoad,
   handleRatingChange,
-  colorPicker,
 }) => (
   <Card
     className="card"
@@ -27,7 +44,7 @@ const CustomCard = ({
     }}
   >
     <div className="rating" style={{ borderColor: colorPicker(vote) }}>
-      {vote < 1 ? "NR" : vote?.toFixed(1) || "NR"}
+      {ratingPicker(vote)}
     </div>
     <Row gutter={[16, 16]}>
       <Col span={8}>

@@ -2,135 +2,29 @@
 
 import "./app.css";
 import { Spin, Input, Tabs, List, message } from "antd";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import CustomCard from "../custom-card";
 import RatedPagination from "../rated-pagination";
 import SearchPagination from "../search-pagination";
-
-class SearchService {
-  _baseUrlMovies = "https://api.themoviedb.org/3/search/";
-  _baseUrlGenres = "https://api.themoviedb.org/3/genre/movie/list";
-  // _baseUrlSession = "https://api.themoviedb.org/3/authentication/session/new";
-  // _baseUrlToken = "https://api.themoviedb.org/3/authentication/token/new";
-  _apiKey = "?api_key=0181923591c91859e91691704fe87633";
-  _noAdult = "&include_adult=false";
-  _lang = "&language=en-US";
-  _baseUrlGuestSession =
-    "https://api.themoviedb.org/3/authentication/guest_session/new";
-  _baseUrlTrending = "https://api.themoviedb.org/3/trending/movie/day";
-
-  async getResource(query, searchType, baseUrl, page) {
-    const q = "&query=" + query;
-    const p = "&page=" + page;
-    const fetchMoviesString = `${baseUrl}${searchType}${this._apiKey}${this._lang}${q}${p}${this._noAdult}`;
-    const fetchGenresString = `${this._baseUrlGenres}${this._apiKey}`;
-    // const fetchTokenString = `${this._baseUrlToken}${this._apiKey}`;
-    const fetchGuestSessionString = `${this._baseUrlGuestSession}${this._apiKey}`;
-    const fetchTrendingString = `${this._baseUrlTrending}${this._apiKey}`;
-
-    let res = {};
-
-    if (baseUrl === this._baseUrlMovies) res = await fetch(fetchMoviesString);
-    else if (baseUrl === this._baseUrlGenres)
-      res = await fetch(fetchGenresString);
-    // else if (baseUrl === this._baseUrlToken)
-    //   res = await fetch(fetchTokenString);
-    else if (baseUrl === this._baseUrlTrending)
-      res = await fetch(fetchTrendingString);
-    else res = await fetch(fetchGuestSessionString);
-
-    if (!res.ok) throw new Error("Couldn't fetch URL");
-    const body = await res.json();
-    return body;
-  }
-
-  async getMovies(query, page) {
-    const res = await this.getResource(
-      query,
-      "movie",
-      this._baseUrlMovies,
-      page
-    );
-    return [res.results, res.total_results];
-  }
-
-  async getGenres() {
-    const res = await this.getResource("", "", this._baseUrlGenres);
-    return res.genres;
-  }
-
-  async getGuestSessionId() {
-    const res = await this.getResource("", "", this._baseUrlGuestSession);
-    return res.guest_session_id;
-  }
-
-  // async getToken() {
-  //   const res = await this.getResource("", "", this._baseUrlToken);
-  //   return res.request_token;
-  // }
-
-  async rateMovie(rating, movieId) {
-    const sessionId = JSON.parse(localStorage.getItem("storedOldSessionId"));
-    const ratingUrl = `https://api.themoviedb.org/3/movie/${movieId}/rating${this._apiKey}&guest_session_id=${sessionId}`;
-    const res = await fetch(ratingUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=utf-8",
-      },
-      body: JSON.stringify({
-        value: rating,
-      }),
-    });
-    if (!res.ok) throw new Error("Couldn't rate the movie");
-    return await res.json();
-  }
-
-  async getRatedMovies(page) {
-    const sessionId = JSON.parse(localStorage.getItem("storedOldSessionId"));
-    const res = await fetch(
-      `https://api.themoviedb.org/3/guest_session/${sessionId}/rated/movies${this._apiKey}&page=${page}`
-    );
-    if (!res.ok) throw new Error("Couldn't get rated movies");
-    const body = await res.json();
-    return [body.results, body.total_results];
-  }
-}
+import SearchService from "../../utils/helpers/SearchService";
 
 const ss = new SearchService();
 
 const MovieList = () => {
-  // const storedMovies = localStorage.getItem("storedMovies");
-  // const moviesState = storedMovies ? JSON.parse(storedMovies) : [];
-  // const storedTotalMovies = localStorage.getItem("storedTotalMovies");
-  // const totalMoviesState = storedMovies ? JSON.parse(storedTotalMovies) : "";
   const storedGenres = localStorage.getItem("storedGenres");
   const genresState = storedGenres ? JSON.parse(storedGenres) : [];
-  // const storedToken = localStorage.getItem("storedToken");
-  // const tokenState = storedToken ? JSON.parse(storedToken) : "";
-  // const storedSessionId = localStorage.getItem("storedSessionId");
-  // const sessionState = storedSessionId ? JSON.parse(storedSessionId) : "";
-  const storedOldSessionId = localStorage.getItem("storedOldSessionId");
-  const oldSessionState = storedOldSessionId
-    ? JSON.parse(storedOldSessionId)
-    : "";
-  // const storedTotalRatedMovies = localStorage.getItem("storedTotalRatedMovies");
-  // const totalRatedMoviesState = storedMovies
-  //   ? JSON.parse(storedTotalRatedMovies)
-  //   : "";
-  // const storedQuery = localStorage.getItem("storedQuery");
-  // const queryState = storedMovies ? JSON.parse(storedQuery) : "";
+
+  const storedSessionId = localStorage.getItem("storedSessionId");
+  const sessionState = storedSessionId ? JSON.parse(storedSessionId) : "";
 
   const [movies, setMovies] = useState("");
   const [trending, setTrending] = useState("");
   const [totalMovies, setTotalMovies] = useState("");
   const [genres, setGenres] = useState(genresState);
-  // const [token, setToken] = useState(tokenState);
-  // const [sessionId, setSessionId] = useState(sessionState);
-  const [oldSessionId, setOldSessionId] = useState(oldSessionState);
-  // const [returnedToken, setReturnedToken] = useState("");
+  const [sessionId, setSessionId] = useState(sessionState);
   const [pageLoading, setPageLoading] = useState(true);
   const [imageLoading, setImageLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("");
+  const [, setActiveTab] = useState("");
   const [ratedMovies, setRatedMovies] = useState([]);
   const [totalRatedMovies, setTotalRatedMovies] = useState("");
   const [currentRatedPage, setCurrentRatedPage] = useState(1);
@@ -138,137 +32,12 @@ const MovieList = () => {
   const [currentQuery, setCurrentQuery] = useState("");
 
   const pageSize = 20;
-  const isInitialRender = useRef(true);
   const imageBaseURL = "https://www.themoviedb.org/t/p/w600_and_h900_bestv2/";
 
-  useEffect(() => {
-    if (isInitialRender.current) return;
-    console.log("active tab set to:", activeTab);
-  }, [activeTab]);
-
-  useEffect(() => {
-    localStorage.setItem("storedQuery", JSON.stringify(currentQuery));
-  }, [currentQuery]);
-
-  useEffect(() => {
-    localStorage.setItem("storedTotalMovies", JSON.stringify(totalMovies));
-  }, [totalMovies]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "storedTotalRatedMovies",
-      JSON.stringify(totalRatedMovies)
-    );
-  }, [totalRatedMovies]);
-
-  // useEffect(() => {
-  //   localStorage.setItem("storedMovies", JSON.stringify(movies));
-  // }, [movies]);
-
-  useEffect(() => {
-    localStorage.setItem("storedGenres", JSON.stringify(genres));
-    handleMainPageLoad();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [genres]);
-
-  // useEffect(() => {
-  //   localStorage.setItem("storedToken", JSON.stringify(token));
-  // }, [token]);
-
-  // useEffect(() => {
-  //   localStorage.setItem("storedSessionId", JSON.stringify(sessionId));
-  // }, [sessionId]);
-
-  useEffect(() => {
-    localStorage.setItem("storedOldSessionId", JSON.stringify(oldSessionId));
-  }, [oldSessionId]);
-
-  useEffect(() => {
-    if (localStorage.getItem("storedOldSessionId") === '""') getOldSessionId();
-    if (localStorage.getItem("storedGenres") === "[]") getGenres();
-    isInitialRender.current = false;
-    // if (!token) getToken();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // useEffect(() => {
-  // if (returnedToken) getSessionId();
-  // // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [returnedToken]);
-
-  // useEffect(() => {
-  //   if (isInitialRender.current) return;
-  //   if (token) forwardUser();
-  //   //eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [token]);
-
-  // useEffect(() => {
-  //   if (isInitialRender.current) return;
-  //   if (localStorage.getItem("storedMovies") === "[]") handleSearch();
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [genres]);
-
-  // useEffect(() => {
-  //   if (currentPage === 1) handleSearch(currentQuery, currentPage);
-  //   refreshPosters();
-  //   setPageLoading(false);
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [currentPage]);
-
-  // useEffect(() => {
-  //   const params = new URLSearchParams(window.location.search);
-  //   const returnedToken = params.get("request_token");
-  //   if (returnedToken) {
-  //     setReturnedToken(returnedToken);
-  //     console.log("setReturnedToken triggered useEffect for getSessionId");
-  //     window.history.replaceState(null, null, window.location.pathname);
-  //   }
-  // }, []);
-
-  // const forwardUser = () => {
-  //   console.log("forwarding user...");
-  //   return window.location.replace(
-  //     `https://www.themoviedb.org/authenticate/${token}?redirect_to=http://localhost:3000`
-  /* ?redirect_to=http://localhost:3000  , "_blank" */
-  /* ?redirect_to=https://movie-db-murex-phi.vercel.app/ */
-  //   );
-  // };
-
-  // const getSessionId = async () => {
-  //   try {
-  //     console.log(
-  //       'sending POST that "returned" token triggered:',
-  //       returnedToken
-  //     );
-  //     const session = await fetch(`${ss._baseUrlSession}${ss._apiKey}`, {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({
-  //         request_token: `${returnedToken}`,
-  //       }),
-  //     });
-  //     if (!session.ok) throw new Error("Couldn't fetch URL");
-  //     const body = await session.json();
-  //     setSessionId(body.session_id);
-  //   } catch (e) {
-  //     throw new Error(`${e} (Couldn't create session)`);
-  //   }
-  // };
-
-  // const getToken = async () => {
-  //   try {
-  //     const token = await ss.getToken();
-  //     setToken(token);
-  //     console.log(`token created: ${token}`, Date.now());
-  //   } catch (e) {
-  //     throw new Error(`${e} (Couldn't get token)`);
-  //   }
-  // };
-
-  const getOldSessionId = async () => {
+  const getSessionId = async () => {
     try {
       const id = await ss.getGuestSessionId();
-      setOldSessionId(id);
+      setSessionId(id);
       console.log(`old guest session created: ${id}`, Date.now());
     } catch (e) {
       throw new Error(`${e} (Couldn't create session)`);
@@ -317,7 +86,6 @@ const MovieList = () => {
       setPageLoading(false);
       console.log("handled search", Date.now());
     } catch (e) {
-      console.log(e);
       throw new Error(`${e} (Couldn't fetch movies)`);
     }
   };
@@ -331,15 +99,6 @@ const MovieList = () => {
       "https://upload.wikimedia.org/wikipedia/commons/1/14/No_Image_Available.jpg?20200913095930";
   };
 
-  // const refreshPosters = () => {
-  //   const posterContainers = document.querySelectorAll(".poster-container");
-  //   posterContainers.forEach((posterContainer) => {
-  //     const poster = posterContainer.querySelector(".poster");
-  //     posterContainer.replaceChild(poster, poster);
-  //   });
-  //   console.log("refreshed posters");
-  // };
-
   const handleRatedChange = async (key, page) => {
     setPageLoading(true);
     setActiveTab(key);
@@ -347,11 +106,7 @@ const MovieList = () => {
       const rated = await ss.getRatedMovies(page);
       console.log("got rated from server:", rated);
       const ratedWithGenres = rated[0].map((movie) => {
-        const genreNames = [];
-        for (let id of movie.genre_ids) {
-          const genre = genres.find((g) => g.id === id);
-          genreNames.push(genre ? genre.name : null);
-        }
+        const genreNames = getGenreText(movie.genre_ids);
         return {
           ...movie,
           genres: genreNames,
@@ -368,20 +123,6 @@ const MovieList = () => {
     console.log("sent rating:", rating, movieId);
     await ss.rateMovie(rating, movieId);
     console.log("server posted rating");
-  };
-
-  const colorPicker = (rating) => {
-    let color = "";
-    if (rating >= 0 && rating < 3) {
-      color = "#E90000";
-    } else if (rating >= 3 && rating < 5) {
-      color = "#E97E00";
-    } else if (rating >= 5 && rating < 7) {
-      color = "#E9D100";
-    } else if (rating >= 7) {
-      color = "#66E900";
-    }
-    return color;
   };
 
   const handlePageChange = async (query, page, tab) => {
@@ -475,8 +216,6 @@ const MovieList = () => {
     }
   };
 
-  // .slice((currentPage - 1) * pageSize, currentPage * pageSize)
-
   const items = [
     {
       key: "1",
@@ -524,7 +263,6 @@ const MovieList = () => {
                   date,
                   description,
                   title,
-                  // rating,
                   vote,
                   id,
                 }) => (
@@ -538,14 +276,12 @@ const MovieList = () => {
                       posterUrl={posterUrl}
                       date={date}
                       description={description}
-                      // rating={rating}
                       title={title}
                       vote={vote}
                       id={id}
                       handleImageLoadError={handleImageLoadError}
                       handleImageLoad={handleImageLoad}
                       handleRatingChange={handleRatingChange}
-                      colorPicker={colorPicker}
                     />
                   </List.Item>
                 )}
@@ -617,7 +353,6 @@ const MovieList = () => {
                       handleImageLoadError={handleImageLoadError}
                       handleImageLoad={handleImageLoad}
                       handleRatingChange={handleRatingChange}
-                      colorPicker={colorPicker}
                     />
                   </List.Item>
                 )}
@@ -637,6 +372,26 @@ const MovieList = () => {
       ),
     },
   ];
+
+  const useLocalStorage = (key, storedValue, extraAction) => {
+    useEffect(() => {
+      localStorage.setItem(key, JSON.stringify(storedValue));
+      if (extraAction === handleMainPageLoad && genres.length !== 0)
+        extraAction();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [storedValue]);
+  };
+
+  useLocalStorage("storedQuery", currentQuery);
+  useLocalStorage("storedTotalMovies", totalMovies);
+  useLocalStorage("storedSessionId", sessionId);
+  useLocalStorage("storedTotalRatedMovies", totalRatedMovies);
+  useLocalStorage("storedGenres", genres, handleMainPageLoad);
+
+  useEffect(() => {
+    if (localStorage.getItem("storedSessionId") === '""') getSessionId();
+    if (localStorage.getItem("storedGenres") === "[]") getGenres();
+  }, []);
 
   return (
     <Tabs
